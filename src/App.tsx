@@ -1,10 +1,7 @@
-import { Routes, Route, Link, useLocation } from "react-router-dom";
-import Registry from "./pages/Registry";
-import Home from "./pages/Home";
-import FAQ from "./pages/Faq";
-import Rsvp from "./pages/Rsvp";
+import { Link, useLocation } from "react-router-dom";
 import roTooFat from "./assets/ro_too_fat.jpg";
 import { AppBar, Toolbar, Button, Box } from "@mui/material";
+import AppRoutes from "./AppRoutes";
 
 function App() {
   const location = useLocation();
@@ -83,12 +80,7 @@ function App() {
           textAlign: "center",
         }}
       >
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/registry" element={<Registry />} />
-          <Route path="/rsvp" element={<Rsvp />} />
-          <Route path="/faq" element={<FAQ />} />
-        </Routes>
+        <AppRoutes />
       </Box>
     </Box>
   );
