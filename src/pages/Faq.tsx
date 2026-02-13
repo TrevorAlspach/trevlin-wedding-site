@@ -1,13 +1,16 @@
 import React from "react";
+import { Box, Typography } from "@mui/material";
 
 const FAQ: React.FC = () => {
   return (
-    <div>
-      <h1>FAQ</h1>
-      <p>
+    <Box>
+      <Typography variant="h3" component="h1" gutterBottom>
+        FAQ
+      </Typography>
+      <Typography variant="body1">
         Welcome to the FAQ page. Here you can find answers to common questions.
-      </p>
-    </div>
+      </Typography>
+    </Box>
   );
 };
 

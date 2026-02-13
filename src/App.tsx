@@ -1,64 +1,96 @@
-import "./App.css";
 import { Routes, Route, Link, useLocation } from "react-router-dom";
 import Registry from "./pages/Registry";
 import Home from "./pages/Home";
-import FAQ from "./pages/FAQ";
+import FAQ from "./pages/Faq";
 import Rsvp from "./pages/Rsvp";
 import roTooFat from "./assets/ro_too_fat.jpg";
+import { AppBar, Toolbar, Button, Box } from "@mui/material";
 
 function App() {
   const location = useLocation();
   const isHomePage = location.pathname === "/";
 
   return (
-    <div
-      className="hero min-h-screen bg-neutral"
-      style={{
+    <Box
+      sx={{
+        minHeight: "100vh",
         backgroundImage: isHomePage ? `url(${roTooFat})` : undefined,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundColor: isHomePage ? undefined : "background.default",
       }}
     >
-      <div className="hero-overlay">
-        <div className="navbar opacity-bar">
-          <div className="navbar-start">
-            <Link
+      <AppBar
+        position="static"
+        sx={{
+          backgroundColor: "rgba(10, 21, 9, 0.484)",
+          boxShadow: "none",
+        }}
+      >
+        <Toolbar>
+          <Box sx={{ flexGrow: 1, display: "flex", gap: 1 }}>
+            <Button
+              component={Link}
               to="/"
-              className="btn btn-ghost text-white normal-case text-xl"
+              sx={{
+                color: "white",
+                textTransform: "none",
+                fontSize: "1.25rem",
+              }}
             >
               Home
-            </Link>
-            <Link
+            </Button>
+            <Button
+              component={Link}
               to="/registry"
-              className="btn btn-ghost text-white normal-case text-xl "
+              sx={{
+                color: "white",
+                textTransform: "none",
+                fontSize: "1.25rem",
+              }}
             >
               Registry
-            </Link>
-            <Link
+            </Button>
+            <Button
+              component={Link}
               to="/faq"
-              className="btn text-white btn-ghost normal-case text-xl"
+              sx={{
+                color: "white",
+                textTransform: "none",
+                fontSize: "1.25rem",
+              }}
             >
               FAQs
-            </Link>
-          </div>
-          <div className="navbar-center"></div>
-          <div className="navbar-end">
-            <Link
-              to="/rsvp"
-              className="btn text-white btn-ghost normal-case text-xl"
-            >
-              RSVP
-            </Link>
-          </div>
-        </div>
-      </div>
-      <div className="hero-content text-neutral-content text-center">
+            </Button>
+          </Box>
+          <Button
+            component={Link}
+            to="/rsvp"
+            sx={{ color: "white", textTransform: "none", fontSize: "1.25rem" }}
+          >
+            RSVP
+          </Button>
+        </Toolbar>
+      </AppBar>
+
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          minHeight: "calc(100vh - 64px)",
+          color: isHomePage ? "white" : "text.primary",
+          textAlign: "center",
+        }}
+      >
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/registry" element={<Registry />} />
           <Route path="/rsvp" element={<Rsvp />} />
           <Route path="/faq" element={<FAQ />} />
         </Routes>
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 }
 

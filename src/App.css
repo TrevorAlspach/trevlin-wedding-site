@@ -1,9 +1,1 @@
-@import "tailwindcss";
-@plugin "daisyui" {
-    themes:  cupcake;
-}
-
-
-.opacity-bar {
-    background-color: rgba(10, 21, 9, 0.484); /* White with 80% opacity */
-}
+/* App styles - using MUI for component styling */

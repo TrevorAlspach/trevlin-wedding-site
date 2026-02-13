@@ -1,14 +1,27 @@
 import React from "react";
+import { Box, Typography, Button } from "@mui/material";
+import { Link } from "react-router-dom";
 
 const Home: React.FC = () => {
   return (
-    <div className="max-w-md">
-      <h1 className="mb-5 text-5xl font-bold">Trevor and Kaitlin!</h1>
-      <p className="mb-5">
+    <Box sx={{ maxWidth: 448 }}>
+      <Typography variant="h2" component="h1" fontWeight="bold" gutterBottom>
+        Trevor and Kaitlin!
+      </Typography>
+      <Typography variant="body1" sx={{ mb: 3 }}>
         Dog too fat for walk. Shiba is cute doggo big ol pupper, borking
-      </p>
-      <button className="btn text-white btn-primary ">RSVP</button>
-    </div>
+      </Typography>
+      <Button
+        component={Link}
+        to="/rsvp"
+        variant="contained"
+        color="primary"
+        size="large"
+        sx={{ color: "white" }}
+      >
+        RSVP
+      </Button>
+    </Box>
   );
 };
 
