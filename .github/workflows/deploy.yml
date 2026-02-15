@@ -1,32 +1,39 @@
-name: Deploy to Azure App Service
+name: Deploy to Azure Container Apps
 
 on:
   workflow_run:
     workflows: ["Build & Push Image"]
     types: [completed]
     branches: [main]
+  workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  IMAGE_TAG: latest
 
 jobs:
   deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     permissions:
+      id-token: write
       contents: read
-      packages: read
 
     steps:
-      - name: Log in to Azure
+      - name: Azure Login
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Deploy to Azure Web App
-        uses: azure/webapps-deploy@v3
+      - name: Deploy latest image to Container App
+        uses: azure/cli@v2
         with:
-          app-name: ${{ vars.AZURE_WEBAPP_NAME }}
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          inlineScript: |
+            az extension add --name containerapp --upgrade
+
+            az containerapp update \
+              --name "${{ vars.AZURE_CONTAINER_APP_NAME }}" \
+              --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+              --image "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
