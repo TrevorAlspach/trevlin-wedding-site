@@ -9,7 +9,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ toLower(github.repository) }}
+  IMAGE_NAME: ${{ vars.IMAGE_NAME }}
   IMAGE_TAG: latest
 
 jobs:
