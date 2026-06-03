@@ -99,25 +99,45 @@ const faqs: FaqItem[] = [
   },
 ];
 
+const half = Math.ceil(faqs.length / 2);
+const leftFaqs = faqs.slice(0, half);
+const rightFaqs = faqs.slice(half);
+
+const FaqColumn: React.FC<{ items: FaqItem[] }> = ({ items }) => (
+  <Box sx={{ flex: 1, minWidth: 0 }}>
+    {items.map((faq, index) => (
+      <Accordion key={index} disableGutters>
+        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+          <Typography variant="subtitle1" fontWeight="bold">
+            {faq.question}
+          </Typography>
+        </AccordionSummary>
+        <AccordionDetails>
+          <Typography variant="body1">{faq.answer}</Typography>
+        </AccordionDetails>
+      </Accordion>
+    ))}
+  </Box>
+);
+
 const FAQ: React.FC = () => {
   return (
-    <Box sx={{ width: "100%", maxWidth: 720, mx: "auto", py: 4, px: 2 }}>
+    <Box sx={{ width: "100%", maxWidth: 1200, mx: "auto", py: 4, px: 2 }}>
       <Typography variant="h3" component="h1" gutterBottom>
         FAQ
       </Typography>
 
-      {faqs.map((faq, index) => (
-        <Accordion key={index} disableGutters>
-          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-            <Typography variant="subtitle1" fontWeight="bold">
-              {faq.question}
-            </Typography>
-          </AccordionSummary>
-          <AccordionDetails>
-            <Typography variant="body1">{faq.answer}</Typography>
-          </AccordionDetails>
-        </Accordion>
-      ))}
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: { xs: "column", md: "row" },
+          gap: 2,
+          alignItems: "flex-start",
+        }}
+      >
+        <FaqColumn items={leftFaqs} />
+        <FaqColumn items={rightFaqs} />
+      </Box>
     </Box>
   );
 };

@@ -1,5 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
-import roTooFat from "./assets/ro_too_fat.jpg";
+//import roTooFat from "./assets/ro_too_fat.jpg";
+import goofygooobers from "./assets/goofygoobers.jpg";
+import wideGoobers from "./assets/widegoobers.jpg";
 import { AppBar, Toolbar, Button, Box } from "@mui/material";
 import AppRoutes from "./AppRoutes";
 import { ChatWidget } from "./chat/components/ChatWidget";
@@ -13,7 +15,7 @@ function App() {
     <Box
       sx={{
         minHeight: "100vh",
-        backgroundImage: isHomePage ? `url(${roTooFat})` : undefined,
+        backgroundImage: isHomePage ? `url(${wideGoobers})` : undefined,
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundColor: isHomePage ? undefined : "background.default",
@@ -87,7 +89,7 @@ function App() {
         sx={{
           display: "flex",
           justifyContent: isChatPage ? "stretch" : "center",
-          alignItems: isChatPage ? "stretch" : "center",
+          alignItems: isChatPage ? "stretch" : isHomePage ? "flex-start" : "center",
           minHeight: "calc(100vh - 64px)",
           color: isHomePage ? "white" : "text.primary",
           textAlign: isChatPage ? "left" : "center",
