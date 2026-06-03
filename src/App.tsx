@@ -1,6 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
 //import roTooFat from "./assets/ro_too_fat.jpg";
-import goofygooobers from "./assets/goofygoobers.jpg";
 import wideGoobers from "./assets/widegoobers.jpg";
 import { AppBar, Toolbar, Button, Box } from "@mui/material";
 import AppRoutes from "./AppRoutes";
@@ -89,7 +88,11 @@ function App() {
         sx={{
           display: "flex",
           justifyContent: isChatPage ? "stretch" : "center",
-          alignItems: isChatPage ? "stretch" : isHomePage ? "flex-start" : "center",
+          alignItems: isChatPage
+            ? "stretch"
+            : isHomePage
+              ? "flex-start"
+              : "center",
           minHeight: "calc(100vh - 64px)",
           color: isHomePage ? "white" : "text.primary",
           textAlign: isChatPage ? "left" : "center",
