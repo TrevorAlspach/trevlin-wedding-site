@@ -1,0 +1,3 @@
+# This is a private wedding site — please don't index it.
+User-agent: *
+Disallow: /
