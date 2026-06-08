@@ -1,9 +1,11 @@
-import { Link, useLocation } from "react-router-dom";
-//import roTooFat from "./assets/ro_too_fat.jpg";
-import wideGoobers from "./assets/widegoobers.jpg";
-import { AppBar, Toolbar, Button, Box } from "@mui/material";
+import { useLocation } from "react-router-dom";
+import { Box } from "@mui/material";
 import AppRoutes from "./AppRoutes";
 import { ChatWidget } from "./chat/components/ChatWidget";
+import Nav from "./components/Nav";
+
+const OLIVE = "#5c6e3a";
+const IVORY = "#f5efe0";
 
 function App() {
   const location = useLocation();
@@ -14,88 +16,21 @@ function App() {
     <Box
       sx={{
         minHeight: "100vh",
-        backgroundImage: isHomePage ? `url(${wideGoobers})` : undefined,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        backgroundColor: isHomePage ? undefined : "background.default",
+        backgroundColor: OLIVE,
+        color: IVORY,
       }}
     >
-      <AppBar
-        position="static"
-        sx={{
-          backgroundColor: "rgba(10, 21, 9, 0.484)",
-          boxShadow: "none",
-        }}
-      >
-        <Toolbar>
-          <Box sx={{ flexGrow: 1, display: "flex", gap: 1 }}>
-            <Button
-              component={Link}
-              to="/"
-              sx={{
-                color: "white",
-                textTransform: "none",
-                fontSize: "1.25rem",
-              }}
-            >
-              Home
-            </Button>
-            <Button
-              component={Link}
-              to="/registry"
-              sx={{
-                color: "white",
-                textTransform: "none",
-                fontSize: "1.25rem",
-              }}
-            >
-              Registry
-            </Button>
-            <Button
-              component={Link}
-              to="/faq"
-              sx={{
-                color: "white",
-                textTransform: "none",
-                fontSize: "1.25rem",
-              }}
-            >
-              FAQs
-            </Button>
-            <Button
-              component={Link}
-              to="/chat"
-              sx={{
-                color: "white",
-                textTransform: "none",
-                fontSize: "1.25rem",
-              }}
-            >
-              Chat
-            </Button>
-          </Box>
-          <Button
-            component={Link}
-            to="/rsvp"
-            sx={{ color: "white", textTransform: "none", fontSize: "1.25rem" }}
-          >
-            RSVP
-          </Button>
-        </Toolbar>
-      </AppBar>
+      {!isHomePage && <Nav />}
 
       <Box
         sx={{
           display: "flex",
-          justifyContent: isChatPage ? "stretch" : "center",
-          alignItems: isChatPage
-            ? "stretch"
-            : isHomePage
-              ? "flex-start"
-              : "center",
-          minHeight: "calc(100vh - 64px)",
-          color: isHomePage ? "white" : "text.primary",
-          textAlign: isChatPage ? "left" : "center",
+          justifyContent: isChatPage || isHomePage ? "stretch" : "center",
+          alignItems: isChatPage ? "stretch" : "flex-start",
+          minHeight: isHomePage ? "auto" : "calc(100vh - 80px)",
+          color: IVORY,
+          textAlign: isChatPage || isHomePage ? "left" : "center",
+          width: "100%",
         }}
       >
         <AppRoutes />

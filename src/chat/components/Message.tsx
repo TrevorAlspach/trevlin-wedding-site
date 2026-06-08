@@ -58,7 +58,7 @@ export const PreviewMessage = ({
                 data-testid="message-content"
                 style={
                   message.role === "user"
-                    ? { backgroundColor: "#006cff" }
+                    ? { backgroundColor: "#ff9d6c", color: "#3a3a1a" }
                     : undefined
                 }
               >
