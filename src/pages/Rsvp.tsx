@@ -84,6 +84,15 @@ const Rsvp: React.FC = () => {
       </Typography>
 
       <Box component="form" onSubmit={handleSubmit} sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+        {/* Honeypot: hidden from humans; bots that fill it get silently dropped by Formspree */}
+        <input
+          type="text"
+          name="_gotcha"
+          tabIndex={-1}
+          autoComplete="off"
+          aria-hidden="true"
+          style={{ display: "none" }}
+        />
         <TextField
           label="Email"
           name="email"
