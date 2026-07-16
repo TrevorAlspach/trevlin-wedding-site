@@ -39,7 +39,10 @@ function securityMiddleware(): RequestHandler {
     crossOriginEmbedderPolicy: false,
     frameguard: { action: "deny" },
     hsts: { maxAge: 31_536_000, includeSubDomains: true },
-    referrerPolicy: { policy: "no-referrer" },
+    // Azure Easy Auth validates cookie-authenticated POST requests against the
+    // same-origin Referer header. Keep cross-origin referrers private while
+    // allowing that CSRF check to succeed.
+    referrerPolicy: { policy: "same-origin" },
   });
 }
 

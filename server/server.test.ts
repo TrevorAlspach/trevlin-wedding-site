@@ -207,6 +207,7 @@ test("serves the SPA and assets only to an allowed email", async () => {
     assert.match(await pageResponse.text(), /private wedding site/);
     assert.match(pageResponse.headers.get("cache-control") ?? "", /private/);
     assert.match(pageResponse.headers.get("cache-control") ?? "", /no-store/);
+    assert.equal(pageResponse.headers.get("referrer-policy"), "same-origin");
 
     const assetResponse = await fetch(`${testApp.baseUrl}/private.txt`, { headers });
     assert.equal(assetResponse.status, 200);
