@@ -1,106 +1,25 @@
-import express from "express";
+import express, { type ErrorRequestHandler, type RequestHandler } from "express";
 import helmet from "helmet";
 import path from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
+import {
+  PROVIDERS,
+  decodePrincipal,
+  getPrincipalEmail,
+  parseAllowedEmails,
+  parseProviders,
+  type ProviderName,
+} from "./auth.js";
+import {
+  createChatHandler,
+  createGuestRateLimiter,
+  type StreamingChatModel,
+} from "./chat.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DEFAULT_DIST_DIR = path.join(__dirname, "dist");
+const DEFAULT_DIST_DIR = path.resolve(__dirname, "../../dist");
 
-const EMAIL_CLAIM_TYPES = new Set([
-  "email",
-  "emails",
-  "preferred_username",
-  "upn",
-  "unique_name",
-  "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress",
-  "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/upn",
-]);
-
-const PROVIDERS = {
-  google: { label: "Continue with Google", route: "google" },
-  aad: { label: "Continue with Microsoft", route: "aad" },
-};
-
-function normalizeEmail(value) {
-  return typeof value === "string" ? value.trim().toLowerCase() : "";
-}
-
-function looksLikeEmail(value) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-}
-
-export function parseAllowedEmails(value = "") {
-  const emails = new Set();
-  const invalid = [];
-
-  for (const item of String(value).split(/[\s,;]+/)) {
-    const email = normalizeEmail(item);
-    if (!email) continue;
-    if (!looksLikeEmail(email)) {
-      invalid.push(item);
-      continue;
-    }
-    emails.add(email);
-  }
-
-  if (invalid.length > 0) {
-    throw new Error(`ALLOWED_EMAILS contains ${invalid.length} invalid entr${invalid.length === 1 ? "y" : "ies"}`);
-  }
-
-  return emails;
-}
-
-export function parseProviders(value = "google,aad") {
-  const selected = [];
-
-  for (const item of String(value).split(/[\s,;]+/)) {
-    const provider = item.trim().toLowerCase();
-    if (!provider) continue;
-    if (!PROVIDERS[provider]) {
-      throw new Error(`AUTH_PROVIDERS contains unsupported provider: ${item}`);
-    }
-    if (!selected.includes(provider)) selected.push(provider);
-  }
-
-  if (selected.length === 0) {
-    throw new Error("AUTH_PROVIDERS must contain at least one provider");
-  }
-
-  return selected;
-}
-
-export function decodePrincipal(headerValue) {
-  if (typeof headerValue !== "string" || headerValue.length === 0 || headerValue.length > 64_000) {
-    return null;
-  }
-
-  try {
-    const decoded = Buffer.from(headerValue, "base64").toString("utf8");
-    const principal = JSON.parse(decoded);
-    if (!principal || typeof principal.auth_typ !== "string" || !Array.isArray(principal.claims)) {
-      return null;
-    }
-    return principal;
-  } catch {
-    return null;
-  }
-}
-
-export function getPrincipalEmail(principal) {
-  if (!principal || !Array.isArray(principal.claims)) return null;
-
-  for (const claim of principal.claims) {
-    if (!claim || typeof claim.typ !== "string" || typeof claim.val !== "string") continue;
-    if (!EMAIL_CLAIM_TYPES.has(claim.typ.toLowerCase())) continue;
-
-    const email = normalizeEmail(claim.val);
-    if (looksLikeEmail(email)) return email;
-  }
-
-  return null;
-}
-
-function securityMiddleware() {
+function securityMiddleware(): RequestHandler {
   return helmet({
     contentSecurityPolicy: {
       directives: {
@@ -124,7 +43,7 @@ function securityMiddleware() {
   });
 }
 
-function page(title, body) {
+function page(title: string, body: string): string {
   return `<!doctype html>
 <html lang="en">
   <head>
@@ -149,7 +68,7 @@ function page(title, body) {
 </html>`;
 }
 
-function loginPage(providers) {
+function loginPage(providers: ProviderName[]): string {
   const links = providers
     .map((provider) => {
       const config = PROVIDERS[provider];
@@ -166,7 +85,7 @@ function loginPage(providers) {
   );
 }
 
-function deniedPage() {
+function deniedPage(): string {
   return page(
     "Access denied",
     `<h1>Access denied</h1>
@@ -175,17 +94,52 @@ function deniedPage() {
   );
 }
 
+function isApiRequest(pathname: string): boolean {
+  return pathname === "/api" || pathname.startsWith("/api/");
+}
+
+const apiBodyErrorHandler: ErrorRequestHandler = (error, request, response, next) => {
+  if (!isApiRequest(request.path)) {
+    next(error);
+    return;
+  }
+
+  const status = typeof error?.status === "number" ? error.status : 500;
+  if (status === 400 || status === 413) {
+    response.status(400).json({ error: "Invalid chat request." });
+    return;
+  }
+
+  console.error("API request failed", error);
+  response.status(500).json({ error: "The request could not be completed." });
+};
+
+export type CreateAppOptions = {
+  allowedEmails?: Set<string>;
+  providers?: ProviderName[];
+  distDir?: string;
+  chatModel?: StreamingChatModel;
+  chatRateLimit?: {
+    maxRequests?: number;
+    windowMs?: number;
+    now?: () => number;
+  };
+};
+
 export function createApp({
   allowedEmails = parseAllowedEmails(process.env.ALLOWED_EMAILS),
   providers = parseProviders(process.env.AUTH_PROVIDERS),
   distDir = DEFAULT_DIST_DIR,
-} = {}) {
+  chatModel,
+  chatRateLimit,
+}: CreateAppOptions = {}) {
   const app = express();
   const indexPath = path.join(distDir, "index.html");
+  const checkChatRateLimit = createGuestRateLimiter(chatRateLimit);
 
   app.disable("x-powered-by");
   app.use(securityMiddleware());
-  app.use((request, response, next) => {
+  app.use((_request, response, next) => {
     response.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive, nosnippet");
     next();
   });
@@ -201,14 +155,22 @@ export function createApp({
   });
 
   app.use((request, response, next) => {
+    const apiRequest = isApiRequest(request.path);
     const rawPrincipal = request.get("x-ms-client-principal");
     if (!rawPrincipal) {
+      if (apiRequest) {
+        response.setHeader("Cache-Control", "no-store");
+        return response.status(401).json({ error: "Your session has expired. Please sign in again." });
+      }
       return response.redirect(302, "/login");
     }
 
     const principal = decodePrincipal(rawPrincipal);
     if (!principal) {
       response.setHeader("Cache-Control", "no-store");
+      if (apiRequest) {
+        return response.status(401).json({ error: "Your session has expired. Please sign in again." });
+      }
       return response.status(401).type("html").send(deniedPage());
     }
 
@@ -224,6 +186,9 @@ export function createApp({
         });
       }
       response.setHeader("Cache-Control", "no-store");
+      if (apiRequest) {
+        return response.status(403).json({ error: "This account does not have access." });
+      }
       return response.status(403).type("html").send(deniedPage());
     }
 
@@ -231,6 +196,24 @@ export function createApp({
     response.setHeader("Cache-Control", "private, no-store");
     return next();
   });
+
+  app.post(
+    "/api/chat",
+    express.json({ limit: "32kb", strict: true }),
+    (_request, response, next) => {
+      const email = response.locals.authenticatedEmail as string;
+      const rateLimit = checkChatRateLimit(email);
+      if (!rateLimit.allowed) {
+        response.setHeader("Retry-After", String(rateLimit.retryAfterSeconds));
+        response.status(429).json({ error: "Too many chat requests. Please try again shortly." });
+        return;
+      }
+      next();
+    },
+    createChatHandler({ model: chatModel }),
+  );
+
+  app.use(apiBodyErrorHandler);
 
   app.use(
     express.static(distDir, {
@@ -249,25 +232,3 @@ export function createApp({
 
   return app;
 }
-
-export function startServer() {
-  const allowedEmails = parseAllowedEmails(process.env.ALLOWED_EMAILS);
-  const providers = parseProviders(process.env.AUTH_PROVIDERS);
-  const port = Number.parseInt(process.env.PORT || "80", 10);
-
-  if (!Number.isInteger(port) || port < 1 || port > 65_535) {
-    throw new Error("PORT must be an integer between 1 and 65535");
-  }
-
-  if (allowedEmails.size === 0) {
-    console.warn("ALLOWED_EMAILS is empty; all authenticated users will be denied");
-  }
-
-  return createApp({ allowedEmails, providers }).listen(port, "0.0.0.0", () => {
-    console.log(`Wedding site authorization server listening on port ${port}`);
-    console.log(`Loaded ${allowedEmails.size} allowed guest email address(es)`);
-  });
-}
-
-const entryPoint = process.argv[1] ? pathToFileURL(path.resolve(process.argv[1])).href : "";
-if (entryPoint === import.meta.url) startServer();

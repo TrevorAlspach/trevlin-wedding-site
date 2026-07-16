@@ -4,7 +4,6 @@ import { MessageContent } from "@/chat/elements/message";
 import { Response } from "@/chat/elements/response";
 import { SparklesIcon } from "@/chat/icons";
 import { MessageActions } from "./MessageActions";
-import { MessageReasoning } from "./MessageReasoning";
 
 export const PreviewMessage = ({
   message,
@@ -39,13 +38,6 @@ export const PreviewMessage = ({
               message.role === "user",
           })}
         >
-          {message.reasoning && (
-            <MessageReasoning
-              isLoading={isLoading}
-              reasoning={message.reasoning}
-            />
-          )}
-
           {message.content && (
             <div>
               <MessageContent

@@ -13,6 +13,6 @@ ENV NODE_ENV=production
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 COPY --from=build /app/dist ./dist
-COPY server.mjs ./server.mjs
+COPY --from=build /app/server-dist ./server-dist
 EXPOSE 80
-CMD ["node", "server.mjs"]
+CMD ["node", "server-dist/server/index.js"]

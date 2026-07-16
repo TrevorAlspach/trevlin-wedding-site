@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { MessageCircleIcon, XIcon } from "lucide-react";
-import { Chat } from "./Chat";
+
+const Chat = lazy(() => import("./Chat").then((module) => ({ default: module.Chat })));
 
 const chatThemeVars = {
   "--background": "#5c6e3a",
@@ -60,7 +61,9 @@ export function ChatWidget() {
                 <XIcon className="size-4" />
               </button>
             </div>
-            <Chat className="flex-1" />
+            <Suspense fallback={<div className="flex-1 bg-background" />}>
+              <Chat className="flex-1" />
+            </Suspense>
           </motion.div>
         )}
       </AnimatePresence>

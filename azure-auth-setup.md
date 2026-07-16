@@ -9,7 +9,7 @@ non-empty `ALLOWED_EMAILS` value on public ingress unless Easy Auth is enabled.
 1. Register and enable Google Easy Auth while the old Nginx image is still
    deployed. Initially choose **Require authentication** so Azure rejects or
    redirects anonymous requests.
-2. Add the `guest-emails` secret and `ALLOWED_EMAILS` environment variable.
+2. Add the `guest-emails` and `openai-api-key` secrets and their environment variables.
 3. Deploy the new Node-based image.
 4. Confirm an allowlisted Google account succeeds and an unlisted account gets
    `403`.
@@ -34,6 +34,8 @@ Then add these container environment variables:
 | --- | --- |
 | `ALLOWED_EMAILS` | Secret reference to `guest-emails` |
 | `AUTH_PROVIDERS` | `google` initially; use `google,aad` after Microsoft is configured |
+| `OPENAI_API_KEY` | Secret reference to `openai-api-key` |
+| `OPENAI_MODEL` | `gpt-5.6-luna` by default; use `gpt-5.6-terra` if quality testing warrants it |
 
 Email comparison is case-insensitive. Invalid entries make the server refuse to
 start, and an empty list denies every authenticated account. Updating the secret
@@ -41,7 +43,19 @@ requires restarting the active revision so the process reloads it.
 
 Do not put the real guest list in a GitHub variable or committed `.env` file.
 
-## 2. Enable Google authentication
+## 2. Configure TaroBot
+
+Create a GitHub Actions secret named `OPENAI_API_KEY`. The deployment workflow
+copies it into the Container App secret named `openai-api-key` and exposes the
+server-only `OPENAI_API_KEY` environment variable through a secret reference.
+Optionally create a GitHub Actions variable named `OPENAI_MODEL`; when omitted,
+the workflow uses `gpt-5.6-luna`.
+
+Never use a `VITE_` prefix for either value. Vite embeds such variables in the
+browser bundle. Rotate the OpenAI key in GitHub Actions and redeploy if the key
+changes.
+
+## 3. Enable Google authentication
 
 Choose the hostname guests will actually use. Register both the custom hostname
 and the default Azure hostname only if both should support login.
@@ -69,7 +83,7 @@ The login endpoint used by the public page is:
 /.auth/login/google?post_login_redirect_uri=/
 ```
 
-## 3. Add Microsoft authentication
+## 4. Add Microsoft authentication
 
 This can be done after Google is working.
 
@@ -91,7 +105,7 @@ The Microsoft button uses:
 /.auth/login/aad?post_login_redirect_uri=/
 ```
 
-## 4. Container App settings
+## 5. Container App settings
 
 - Keep ingress HTTPS-only and target port `80`.
 - Use `/healthz` for HTTP startup, liveness, or readiness probes.
@@ -106,7 +120,7 @@ Azure Easy Auth strips externally supplied identity headers and injects its own
 header and accepts only explicit email, UPN, or `preferred_username` claims. A
 display-name claim is intentionally never used for authorization.
 
-## 5. Verify before inviting guests
+## 6. Verify before inviting guests
 
 Use a private/incognito browser window for each case:
 
@@ -119,6 +133,8 @@ Use a private/incognito browser window for each case:
 7. Test the default `azurecontainerapps.io` hostname. It must enforce the same
    allowlist; if it is not intended for guests, do not register OAuth callbacks for
    it.
+8. Open TaroBot and complete a real multi-turn conversation. Confirm it answers
+   from the FAQ facts and admits when an answer is unavailable.
 
 If an authenticated provider is denied because no supported email claim was
 received, the application log records the provider and claim type names, but not

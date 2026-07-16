@@ -4,3 +4,6 @@ dist
 .github
 *.md
 .vscode
+.env
+.env.*
+!.env.example
