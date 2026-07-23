@@ -15,9 +15,14 @@ export const weddingFaqs: readonly WeddingFaqItem[] = [
       "Please aim to arrive at the venue at 4:30 PM. For Atlanta newcomers, please beware that if Google Maps says 15 minutes, it will almost certainly take 30 minutes with traffic.",
   },
   {
-    question: "How to RSVP?",
+    question: "How and When to RSVP?",
     answer:
-      "RSVPs will only be received through the online form. An email receipt of your form submission is confirmation that we will see you on 4/17!",
+      "Once you receive your formal invitation early next year, our RSVP tab on the website will be open. Please RSVP by March 10th.",
+  },
+  {
+    question: "Where can I stay?",
+    answer:
+      "We've reserved a room block at a discounted rate for our guests at the Loews Atlanta and AC Moxy Midtown Atlanta. Please make your reservation by March 16 to receive the special rate. We can't wait to celebrate with you!",
   },
   {
     question: "What should I wear?",
@@ -32,12 +37,12 @@ export const weddingFaqs: readonly WeddingFaqItem[] = [
   {
     question: "Can I bring a plus one?",
     answer:
-      "Please fill out the RSVP form to notify us of a guest that has not been named on the invitation so we can provide the proper accommodations to welcome you all!",
+      "Yes, please fill out the RSVP form to notify us of a guest that has not been named on the invitation so we can provide the proper accommodations to welcome you all!",
   },
   {
     question: "Are children allowed at the wedding?",
     answer:
-      "Please fill out the RSVP form to notify us of any children in attendance so we can provide proper accommodations for our smallest guests!",
+      "Yes, please fill out the RSVP form to notify us of any children in attendance so we can provide proper accommodations for our smallest guests!",
   },
   {
     question: "Can I request songs to the DJ?",
@@ -66,7 +71,8 @@ export const weddingFaqs: readonly WeddingFaqItem[] = [
   },
   {
     question: "Directions to venue?",
-    answer: "The Trolley Barn is located at 963 Edgewood Ave NE, Atlanta, GA 30307.",
+    answer:
+      "The Trolley Barn is located at 963 Edgewood Ave NE, Atlanta, GA 30307.",
   },
   {
     question: "How to change RSVP?",

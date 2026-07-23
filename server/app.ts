@@ -6,6 +6,7 @@ import {
   PROVIDERS,
   decodePrincipal,
   getPrincipalEmail,
+  getPrincipalName,
   parseAllowedEmails,
   parseProviders,
   type ProviderName,
@@ -317,6 +318,7 @@ export function createApp({
       try {
         await sendAccessRequest({
           email,
+          name: getPrincipalName(principal),
           provider: principal.auth_typ,
           message,
           requestedAt: new Date().toISOString(),

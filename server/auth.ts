@@ -8,6 +8,22 @@ const EMAIL_CLAIM_TYPES = new Set([
   "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/upn",
 ]);
 
+const NAME_CLAIM_TYPES = new Set([
+  "name",
+  "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name",
+]);
+
+const GIVEN_NAME_CLAIM_TYPES = new Set([
+  "given_name",
+  "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname",
+]);
+
+const FAMILY_NAME_CLAIM_TYPES = new Set([
+  "family_name",
+  "surname",
+  "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname",
+]);
+
 export const PROVIDERS = {
   google: { label: "Continue with Google", route: "google" },
   aad: { label: "Continue with Microsoft", route: "aad" },
@@ -31,6 +47,12 @@ function normalizeEmail(value: unknown): string {
 
 function looksLikeEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function normalizeName(value: unknown): string {
+  if (typeof value !== "string") return "";
+  const name = value.trim().replace(/\s+/g, " ");
+  return name.length <= 200 ? name : "";
 }
 
 export function parseAllowedEmails(value = ""): Set<string> {
@@ -110,4 +132,24 @@ export function getPrincipalEmail(principal: ClientPrincipal | null): string | n
   }
 
   return null;
+}
+
+export function getPrincipalName(principal: ClientPrincipal | null): string | null {
+  if (!principal || !Array.isArray(principal.claims)) return null;
+
+  let givenName = "";
+  let familyName = "";
+  for (const claim of principal.claims) {
+    if (!claim || typeof claim.typ !== "string" || typeof claim.val !== "string") continue;
+    const claimType = claim.typ.toLowerCase();
+    const value = normalizeName(claim.val);
+    if (!value) continue;
+
+    if (NAME_CLAIM_TYPES.has(claimType)) return value;
+    if (GIVEN_NAME_CLAIM_TYPES.has(claimType)) givenName = value;
+    if (FAMILY_NAME_CLAIM_TYPES.has(claimType)) familyName = value;
+  }
+
+  const name = [givenName, familyName].filter(Boolean).join(" ");
+  return name || null;
 }

@@ -3,6 +3,7 @@ export const DEFAULT_ACCESS_REQUEST_RATE_WINDOW_MS = 12 * 60 * 60 * 1_000;
 
 export type AccessRequest = {
   email: string;
+  name: string | null;
   provider: string;
   message: string;
   requestedAt: string;
@@ -83,6 +84,7 @@ export function createFormspreeAccessRequestSender(
         },
         body: JSON.stringify({
           _subject: "Wedding website access request",
+          name: request.name || "Not provided by identity provider",
           email: request.email,
           identity_provider: request.provider,
           requested_at: request.requestedAt,

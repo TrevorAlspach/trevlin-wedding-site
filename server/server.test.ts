@@ -10,6 +10,7 @@ import { createApp, type CreateAppOptions } from "./app.js";
 import {
   decodePrincipal,
   getPrincipalEmail,
+  getPrincipalName,
   parseAllowedEmails,
   parseProviders,
 } from "./auth.js";
@@ -41,8 +42,10 @@ function principal(claims: Array<{ typ: string; val: string }>, authType = "goog
   return Buffer.from(JSON.stringify({ auth_typ: authType, claims })).toString("base64");
 }
 
-function authHeaders(email: string, claimType = "email"): Record<string, string> {
-  return { "x-ms-client-principal": principal([{ typ: claimType, val: email }]) };
+function authHeaders(email: string, claimType = "email", name?: string): Record<string, string> {
+  const claims = [{ typ: claimType, val: email }];
+  if (name) claims.push({ typ: "name", val: name });
+  return { "x-ms-client-principal": principal(claims) };
 }
 
 async function startTestApp(options: Omit<CreateAppOptions, "distDir"> = {}) {
@@ -106,6 +109,24 @@ test("decodes explicit email claims but rejects display-name claims", () => {
   assert.equal(getPrincipalEmail(displayNamePrincipal), null);
 });
 
+test("extracts a display name or composes one from token claims", () => {
+  const displayNamePrincipal = decodePrincipal(
+    principal([
+      { typ: "email", val: "guest@example.com" },
+      { typ: "name", val: "  Trevor   Guest  " },
+    ]),
+  );
+  assert.equal(getPrincipalName(displayNamePrincipal), "Trevor Guest");
+
+  const splitNamePrincipal = decodePrincipal(
+    principal([
+      { typ: "given_name", val: "Trevor" },
+      { typ: "family_name", val: "Guest" },
+    ]),
+  );
+  assert.equal(getPrincipalName(splitNamePrincipal), "Trevor Guest");
+});
+
 test("validates access request messages", () => {
   assert.deepEqual(parseAccessRequestBody({}), { message: "" });
   assert.deepEqual(parseAccessRequestBody({ message: "  Please add me.  " }), {
@@ -149,6 +170,7 @@ test("posts access requests to the configured Formspree form", async () => {
 
   await sender({
     email: "guest@example.com",
+    name: "Trevor Guest",
     provider: "google",
     requestedAt: "2026-07-22T12:00:00.000Z",
     message: "Please add me.",
@@ -157,6 +179,7 @@ test("posts access requests to the configured Formspree form", async () => {
   assert.equal(submittedUrl, "https://formspree.io/f/request123");
   assert.deepEqual(JSON.parse(submittedBody), {
     _subject: "Wedding website access request",
+    name: "Trevor Guest",
     email: "guest@example.com",
     identity_provider: "google",
     requested_at: "2026-07-22T12:00:00.000Z",
@@ -174,6 +197,7 @@ test("fails closed when Formspree rejects an access request", async () => {
     () =>
       sender({
         email: "guest@example.com",
+        name: null,
         provider: "google",
         requestedAt: "2026-07-22T12:00:00.000Z",
         message: "",
@@ -373,7 +397,7 @@ test("submits an access request using only the verified identity email", async (
     const response = await fetch(`${testApp.baseUrl}/request-access`, {
       method: "POST",
       headers: {
-        ...authHeaders("Stranger@Example.com"),
+        ...authHeaders("Stranger@Example.com", "email", "Trevor Guest"),
         "Content-Type": "application/x-www-form-urlencoded",
       },
       body: new URLSearchParams({
@@ -386,6 +410,7 @@ test("submits an access request using only the verified identity email", async (
     assert.match(await response.text(), /Request sent/);
     assert.equal(requests.length, 1);
     assert.equal(requests[0]?.email, "stranger@example.com");
+    assert.equal(requests[0]?.name, "Trevor Guest");
     assert.equal(requests[0]?.provider, "google");
     assert.equal(requests[0]?.message, "I am an invited guest.");
     assert.match(requests[0]?.requestedAt ?? "", /^\d{4}-\d{2}-\d{2}T/);

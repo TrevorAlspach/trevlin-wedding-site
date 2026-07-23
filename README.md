@@ -27,7 +27,7 @@ the authenticated request paths with simulated Easy Auth headers.
 
 Unlisted authenticated guests can request access when `ACCESS_REQUEST_FORM_ID` is
 set to a dedicated Formspree form ID. The server takes the requested email only
-from Azure Easy Auth, relays the request to Formspree, and limits each email to
+from Azure Easy Auth, includes the token's display name when available, relays the request to Formspree, and limits each email to
 one successful request every 12 hours. Leave the variable empty to hide the
 request form and keep the original contact-the-couple message.
 
