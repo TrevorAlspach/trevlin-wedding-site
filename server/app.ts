@@ -384,6 +384,7 @@ export function createApp({
     }
 
     response.locals.authenticatedEmail = email;
+    response.locals.authenticatedName = getPrincipalName(principal);
     response.setHeader("Cache-Control", "private, no-store");
     return next();
   });
