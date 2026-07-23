@@ -22,6 +22,8 @@ import {
   createModelMessages,
   createSystemPrompt,
   encodeSseData,
+  extractTaroBotAppearance,
+  occasionallyUseChadGon,
   validateChatBody,
   type StreamingChatModel,
 } from "./chat.js";
@@ -236,6 +238,8 @@ test("builds the server-controlled prompt and converts message roles", () => {
   }
   assert.match(prompt, /Answer only from the wedding facts/);
   assert.match(prompt, /do not have that information/i);
+  assert.match(prompt, /\[\[TAROBOT:HELMET=GREEN;FACE=HAPPY_GON\]\]/);
+  assert.match(prompt, /CHAD_GON is a rare, playful alternative/);
 
   const messages = createModelMessages([
     { role: "user", content: "Where?" },
@@ -246,6 +250,40 @@ test("builds the server-controlled prompt and converts message roles", () => {
   assert.ok(messages[1] instanceof HumanMessage);
   assert.ok(messages[2] instanceof AIMessage);
   assert.ok(messages[3] instanceof HumanMessage);
+});
+
+test("extracts TaroBot appearance metadata without exposing it in the answer", () => {
+  assert.deepEqual(
+    extractTaroBotAppearance(
+      "[[TAROBOT:HELMET=YELLOW;FACE=WTF_GON]]\nCould you clarify which event you mean?",
+    ),
+    {
+      appearance: { helmet: "YELLOW", face: "WTF_GON" },
+      content: "Could you clarify which event you mean?",
+      found: true,
+    },
+  );
+
+  assert.deepEqual(extractTaroBotAppearance("A neutral fallback."), {
+    appearance: { helmet: "GREEN", face: "NORMAL_GON" },
+    content: "A neutral fallback.",
+    found: false,
+  });
+
+  assert.deepEqual(
+    occasionallyUseChadGon(
+      { helmet: "GREEN", face: "HAPPY_GON" },
+      () => 0.01,
+    ),
+    { helmet: "GREEN", face: "CHAD_GON" },
+  );
+  assert.deepEqual(
+    occasionallyUseChadGon(
+      { helmet: "GREEN", face: "HAPPY_GON" },
+      () => 0.5,
+    ),
+    { helmet: "GREEN", face: "HAPPY_GON" },
+  );
 });
 
 test("encodes SSE events and limits each guest independently", () => {
@@ -529,7 +567,14 @@ test("fails closed for malformed or display-name-only principals", async () => {
 });
 
 test("streams injected model output through the existing SSE contract", async () => {
-  const testApp = await startTestApp({ chatModel: streamingModel(["The venue is ", "in Atlanta."]) });
+  const testApp = await startTestApp({
+    chatModel: streamingModel([
+      "[[TAROBOT:HELMET=GREEN;",
+      "FACE=HAPPY_GON]]\n",
+      "The venue is ",
+      "in Atlanta.",
+    ]),
+  });
   try {
     const response = await fetch(`${testApp.baseUrl}/api/chat`, {
       method: "POST",
@@ -539,9 +584,14 @@ test("streams injected model output through the existing SSE contract", async ()
     assert.equal(response.status, 200);
     assert.match(response.headers.get("content-type") ?? "", /text\/event-stream/);
     const body = await response.text();
+    assert.match(
+      body,
+      /"type":"appearance","helmet":"GREEN","face":"(?:HAPPY_GON|CHAD_GON)"/,
+    );
     assert.match(body, /"type":"text","content":"The venue is "/);
     assert.match(body, /"type":"text","content":"in Atlanta\."/);
     assert.match(body, /"type":"done"/);
+    assert.doesNotMatch(body, /\[\[TAROBOT:/);
   } finally {
     await testApp.close();
   }
@@ -618,7 +668,9 @@ test("aborts the model stream when the browser disconnects", async () => {
   const model: StreamingChatModel = {
     async stream(_messages, { signal }) {
       return (async function* () {
-        yield { text: "first" };
+        yield {
+          text: "[[TAROBOT:HELMET=GREEN;FACE=HAPPY_GON]]\nfirst",
+        };
         await new Promise<void>((resolve) => {
           if (signal.aborted) {
             streamAborted = true;

@@ -1,15 +1,45 @@
 import { useCallback, useRef, useState } from "react";
 import type { ChatMessage, ChatStatus } from "@/chat/lib/types";
+import {
+  DEFAULT_TAROBOT_APPEARANCE,
+  isTaroBotFace,
+  isTaroBotHelmet,
+  stripTaroBotControlText,
+  type TaroBotAppearance,
+} from "@/chat/lib/tarobot";
 import { generateUUID } from "@/chat/lib/utils";
 
 type UseStreamingChatOptions = {
   apiUrl: string;
 };
 
-type StreamEvent = {
-  type: "text" | "done" | "error";
-  content?: string;
-};
+type StreamEvent =
+  | { type: "text"; content: string }
+  | { type: "appearance"; helmet: TaroBotAppearance["helmet"]; face: TaroBotAppearance["face"] }
+  | { type: "done" }
+  | { type: "error"; content?: string };
+
+function isStreamEvent(value: unknown): value is StreamEvent {
+  if (!value || typeof value !== "object" || !("type" in value)) return false;
+
+  if (value.type === "done") return true;
+  if (value.type === "text") {
+    return "content" in value && typeof value.content === "string";
+  }
+  if (value.type === "error") {
+    return !("content" in value) || typeof value.content === "string";
+  }
+  if (value.type === "appearance") {
+    return (
+      "helmet" in value &&
+      "face" in value &&
+      isTaroBotHelmet(value.helmet) &&
+      isTaroBotFace(value.face)
+    );
+  }
+
+  return false;
+}
 
 function takeCompletedSseEvents(buffer: string): {
   events: StreamEvent[];
@@ -32,16 +62,10 @@ function takeCompletedSseEvents(buffer: string): {
 
     if (!data || data === "[DONE]") continue;
     const parsed: unknown = JSON.parse(data);
-    if (
-      !parsed ||
-      typeof parsed !== "object" ||
-      !("type" in parsed) ||
-      (parsed.type !== "text" && parsed.type !== "done" && parsed.type !== "error") ||
-      ("content" in parsed && typeof parsed.content !== "string")
-    ) {
+    if (!isStreamEvent(parsed)) {
       throw new Error("Invalid response from TaroBot.");
     }
-    events.push(parsed as StreamEvent);
+    events.push(parsed);
   }
 
   return { events, remainder };
@@ -73,6 +97,9 @@ export function useStreamingChat({ apiUrl }: UseStreamingChatOptions) {
   const [input, setInput] = useState("");
   const [status, setStatus] = useState<ChatStatus>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [appearance, setAppearance] = useState<TaroBotAppearance>(
+    DEFAULT_TAROBOT_APPEARANCE,
+  );
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const stop = useCallback(() => {
@@ -109,6 +136,7 @@ export function useStreamingChat({ apiUrl }: UseStreamingChatOptions) {
       const controller = new AbortController();
       abortControllerRef.current = controller;
       let accumulatedContent = "";
+      let pendingAppearance: TaroBotAppearance | null = null;
 
       try {
         const response = await fetch(apiUrl, {
@@ -137,8 +165,16 @@ export function useStreamingChat({ apiUrl }: UseStreamingChatOptions) {
               accumulatedContent += event.content ?? "";
               setMessages([
                 ...updatedMessages,
-                { ...assistantMessage, content: accumulatedContent },
+                {
+                  ...assistantMessage,
+                  content: stripTaroBotControlText(accumulatedContent),
+                },
               ]);
+            } else if (event.type === "appearance") {
+              pendingAppearance = {
+                helmet: event.helmet,
+                face: event.face,
+              };
             } else if (event.type === "done") {
               completed = true;
             } else if (event.type === "error") {
@@ -160,6 +196,7 @@ export function useStreamingChat({ apiUrl }: UseStreamingChatOptions) {
           throw new Error("TaroBot's response ended unexpectedly. Please try again.");
         }
 
+        if (pendingAppearance) setAppearance(pendingAppearance);
         setStatus("idle");
       } catch (caught: unknown) {
         if (controller.signal.aborted) {
@@ -194,6 +231,7 @@ export function useStreamingChat({ apiUrl }: UseStreamingChatOptions) {
     setInput,
     status,
     error,
+    appearance,
     sendMessage,
     stop,
     clearMessages,

@@ -26,7 +26,10 @@ export default function ChatPage() {
       style={{ ...chatThemeVars, fontFamily: "'Cormorant Garamond', serif" }}
       className="w-full"
     >
-      <Chat className="h-[calc(100vh-80px)] w-full" />
+      <Chat
+        characterVariant="page"
+        className="h-[calc(100vh-80px)] w-full"
+      />
     </div>
   );
 }
