@@ -28,8 +28,11 @@ export function Chat({ className, characterVariant = "widget" }: ChatProps) {
     <TooltipProvider>
       <div
         className={cn(
-          "flex flex-col bg-background",
-          className
+          "flex flex-col",
+          characterVariant === "page"
+            ? "bg-[#e9edc6] text-[#29311d]"
+            : "bg-background",
+          className,
         )}
       >
         <TaroBotAvatar
@@ -37,10 +40,19 @@ export function Chat({ className, characterVariant = "widget" }: ChatProps) {
           status={status}
           variant={characterVariant}
         />
-        <Messages status={status} messages={messages} />
-        <div className="mx-auto w-full max-w-4xl px-2 pb-4 md:px-4">
+        <Messages
+          status={status}
+          messages={messages}
+          variant={characterVariant}
+        />
+        <div
+          className={cn(
+            "mx-auto w-full px-2 pb-4 md:px-4",
+            characterVariant === "page" ? "max-w-5xl" : "max-w-4xl",
+          )}
+        >
           {error && (
-            <p className="mb-2 text-left text-sm text-[#ffd7c3]" role="alert">
+            <p className="mb-2 text-left text-sm text-destructive" role="alert">
               {error}
             </p>
           )}
@@ -51,6 +63,7 @@ export function Chat({ className, characterVariant = "widget" }: ChatProps) {
             stop={stop}
             messages={messages}
             sendMessage={sendMessage}
+            variant={characterVariant}
           />
         </div>
       </div>

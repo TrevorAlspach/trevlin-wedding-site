@@ -63,6 +63,9 @@ function page(title: string, body: string): string {
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex, nofollow, noarchive, nosnippet" />
     <title>${title}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <style>
       :root { font-family: Montserrat, system-ui, sans-serif; color: #f5efe0; background: #5c6e3a; }
       * { box-sizing: border-box; }
@@ -73,7 +76,7 @@ function page(title: string, body: string): string {
       .actions { display: grid; gap: .75rem; margin-top: 1.5rem; }
       a, button { display: block; width: 100%; padding: .9rem 1rem; border: 0; border-radius: .65rem; color: #314021; background: #f5efe0; text-align: center; text-decoration: none; font: inherit; font-weight: 700; cursor: pointer; }
       a:hover, button:hover { background: #fffaf0; }
-      form { display: grid; gap: .75rem; margin-top: 1.5rem; }
+      form { display: grid; gap: .75rem; margin-top: 1.5rem; font-family: Montserrat, system-ui, sans-serif; }
       label { font-weight: 700; }
       textarea { width: 100%; min-height: 7rem; resize: vertical; padding: .8rem; border: 1px solid rgba(245,239,224,.55); border-radius: .65rem; color: #f5efe0; background: rgba(24,35,17,.38); font: inherit; }
       textarea::placeholder { color: rgba(245,239,224,.68); }

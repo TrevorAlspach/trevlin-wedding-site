@@ -1,6 +1,12 @@
 import { motion } from "framer-motion";
 
-export const Greeting = () => {
+export const Greeting = ({
+  variant = "widget",
+}: {
+  variant?: "page" | "widget";
+}) => {
+  const isPage = variant === "page";
+
   return (
     <div
       className="mx-auto mt-4 flex size-full max-w-3xl flex-col justify-center px-4 md:mt-16 md:px-8"
@@ -12,8 +18,8 @@ export const Greeting = () => {
         initial={{ opacity: 0, y: 10 }}
         transition={{ delay: 0.4 }}
         style={{
-          color: "#f7d076",
-          fontFamily: "'Cormorant Garamond', serif",
+          color: isPage ? "#a75034" : "#f7d076",
+          fontFamily: "'Montserrat', 'Roboto', sans-serif",
           letterSpacing: "0.3em",
           textTransform: "uppercase",
           fontSize: "1rem",
@@ -28,8 +34,8 @@ export const Greeting = () => {
         initial={{ opacity: 0, y: 10 }}
         transition={{ delay: 0.5 }}
         style={{
-          color: "#f5efe0",
-          fontFamily: "'Cormorant Garamond', serif",
+          color: isPage ? "#34351f" : "#f5efe0",
+          fontFamily: "'Montserrat', 'Roboto', sans-serif",
           fontWeight: 300,
           fontSize: "3rem",
           lineHeight: 1.1,
@@ -43,9 +49,9 @@ export const Greeting = () => {
         initial={{ opacity: 0, y: 10 }}
         transition={{ delay: 0.6 }}
         style={{
-          color: "#f5efe0",
+          color: isPage ? "#34351f" : "#f5efe0",
           opacity: 0.85,
-          fontFamily: "'Cormorant Garamond', serif",
+          fontFamily: "'Montserrat', 'Roboto', sans-serif",
           fontSize: "1.5rem",
           fontWeight: 300,
           marginTop: "0.75rem",

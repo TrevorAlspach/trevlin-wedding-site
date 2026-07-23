@@ -18,18 +18,19 @@ const CORAL = "#ff9d6c";
 const CORAL_HOVER = "#f08152";
 
 const SERIF = "'Cormorant Garamond', serif";
+const SANS = "'Montserrat', 'Roboto', sans-serif";
 
 const fieldSx = {
   "& .MuiInputLabel-root": {
     color: IVORY,
     opacity: 0.75,
-    fontFamily: SERIF,
+    fontFamily: SANS,
     fontSize: "1.1rem",
   },
   "& .MuiInputLabel-root.Mui-focused": { color: IVORY, opacity: 1 },
   "& .MuiOutlinedInput-root": {
     color: IVORY,
-    fontFamily: SERIF,
+    fontFamily: SANS,
     fontSize: "1.15rem",
     backgroundColor: "rgba(245, 239, 224, 0.08)",
     "& fieldset": { borderColor: "rgba(245, 239, 224, 0.4)" },
@@ -83,7 +84,11 @@ const Rsvp: React.FC = () => {
         RSVP
       </Typography>
 
-      <Box component="form" onSubmit={handleSubmit} sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+      <Box
+        component="form"
+        onSubmit={handleSubmit}
+        sx={{ display: "flex", flexDirection: "column", gap: 3, fontFamily: SANS }}
+      >
         {/* Honeypot: hidden from humans; bots that fill it get silently dropped by Formspree */}
         <input
           type="text"
@@ -110,7 +115,7 @@ const Rsvp: React.FC = () => {
               color: IVORY,
               opacity: 0.85,
               mb: 1,
-              fontFamily: SERIF,
+              fontFamily: SANS,
               fontSize: "1.1rem",
               "&.Mui-focused": { color: IVORY },
             }}
@@ -127,13 +132,13 @@ const Rsvp: React.FC = () => {
               value="yes"
               control={<Radio sx={{ color: IVORY, "&.Mui-checked": { color: CORAL } }} />}
               label="Joyfully accepts"
-              sx={{ color: IVORY, "& .MuiFormControlLabel-label": { fontFamily: SERIF, fontSize: "1.1rem" } }}
+              sx={{ color: IVORY, "& .MuiFormControlLabel-label": { fontFamily: SANS, fontSize: "1.1rem" } }}
             />
             <FormControlLabel
               value="no"
               control={<Radio sx={{ color: IVORY, "&.Mui-checked": { color: CORAL } }} />}
               label="Regretfully declines"
-              sx={{ color: IVORY, "& .MuiFormControlLabel-label": { fontFamily: SERIF, fontSize: "1.1rem" } }}
+              sx={{ color: IVORY, "& .MuiFormControlLabel-label": { fontFamily: SANS, fontSize: "1.1rem" } }}
             />
           </RadioGroup>
         </FormControl>
@@ -218,7 +223,7 @@ const Rsvp: React.FC = () => {
           sx={{
             mt: 1,
             color: "#3a3a1a",
-            fontFamily: SERIF,
+            fontFamily: SANS,
             fontSize: "1.2rem",
             fontWeight: 500,
             letterSpacing: "0.04em",

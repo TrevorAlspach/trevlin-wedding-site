@@ -1,12 +1,17 @@
 import { motion } from "framer-motion";
 import { memo } from "react";
 import { Suggestion } from "@/chat/elements/suggestion";
+import { cn } from "@/chat/lib/utils";
 
 type SuggestedActionsProps = {
   sendMessage: (text: string) => void;
+  variant?: "page" | "widget";
 };
 
-function PureSuggestedActions({ sendMessage }: SuggestedActionsProps) {
+function PureSuggestedActions({
+  sendMessage,
+  variant = "widget",
+}: SuggestedActionsProps) {
   const suggestedActions = [
     "What's the dress code?",
     "Where is the venue?",
@@ -28,7 +33,11 @@ function PureSuggestedActions({ sendMessage }: SuggestedActionsProps) {
           transition={{ delay: 0.05 * index }}
         >
           <Suggestion
-            className="h-auto w-full whitespace-normal p-3 text-left"
+            className={cn(
+              "h-auto w-full whitespace-normal p-3 text-left text-lg leading-snug",
+              variant === "page" &&
+                "border-[#5c6e3a] bg-[#5c6e3a] text-[#f7f4df] hover:bg-[#4f6032] hover:text-[#fffdf0]",
+            )}
             onClick={(suggestion) => {
               sendMessage(suggestion);
             }}

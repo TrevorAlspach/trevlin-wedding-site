@@ -1,12 +1,7 @@
-import { lazy, Suspense } from "react";
 import { useLocation } from "react-router-dom";
 import { Box } from "@mui/material";
 import AppRoutes from "./AppRoutes";
 import Nav from "./components/Nav";
-
-const ChatWidget = lazy(() =>
-  import("./chat/components/ChatWidget").then((module) => ({ default: module.ChatWidget })),
-);
 
 const OLIVE = "#5c6e3a";
 const IVORY = "#f5efe0";
@@ -39,9 +34,6 @@ function App() {
       >
         <AppRoutes />
       </Box>
-      <Suspense fallback={null}>
-        <ChatWidget />
-      </Suspense>
     </Box>
   );
 }

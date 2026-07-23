@@ -20,6 +20,7 @@ function PureChatInput({
   messages,
   sendMessage,
   className,
+  variant = "widget",
 }: {
   input: string;
   setInput: (value: string) => void;
@@ -28,6 +29,7 @@ function PureChatInput({
   messages: ChatMessage[];
   sendMessage: (text: string) => void;
   className?: string;
+  variant?: "page" | "widget";
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { width } = useWindowSize();
@@ -98,11 +100,15 @@ function PureChatInput({
   return (
     <div className={cn("relative flex w-full flex-col gap-4", className)}>
       {messages.length === 0 && (
-        <SuggestedActions sendMessage={sendMessage} />
+        <SuggestedActions sendMessage={sendMessage} variant={variant} />
       )}
 
       <PromptInput
-        className="rounded-xl border border-border bg-background p-3 shadow-xs transition-all duration-200 focus-within:border-border hover:border-muted-foreground/50"
+        className={cn(
+          "rounded-xl border border-border bg-background p-3 shadow-xs transition-all duration-200 focus-within:border-border hover:border-muted-foreground/50",
+          variant === "page" &&
+            "border-[#7b844e]/40 bg-[#dfe4ad] focus-within:border-[#5c6e3a]/60 hover:border-[#5c6e3a]/50",
+        )}
         onSubmit={(event) => {
           event.preventDefault();
           if (!input.trim()) return;
@@ -112,7 +118,7 @@ function PureChatInput({
       >
         <div className="flex flex-row items-start gap-1 sm:gap-2">
           <PromptInputTextarea
-            className="grow resize-none border-0! border-none! bg-transparent p-2 text-base outline-none ring-0 [-ms-overflow-style:none] [scrollbar-width:none] placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 [&::-webkit-scrollbar]:hidden"
+            className="grow resize-none border-0! border-none! bg-transparent p-2 text-lg outline-none ring-0 [-ms-overflow-style:none] [scrollbar-width:none] placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 [&::-webkit-scrollbar]:hidden"
             data-testid="chat-input"
             disableAutoResize={true}
             maxHeight={200}

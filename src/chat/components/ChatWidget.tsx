@@ -22,7 +22,7 @@ const chatThemeVars = {
   "--border": "rgba(245, 239, 224, 0.25)",
   "--input": "rgba(245, 239, 224, 0.08)",
   "--ring": "#ff9d6c",
-  fontFamily: "'Cormorant Garamond', serif",
+  fontFamily: "'Montserrat', 'Roboto', sans-serif",
 } as React.CSSProperties;
 
 export function ChatWidget() {
@@ -44,7 +44,7 @@ export function ChatWidget() {
               <span
                 className="text-foreground"
                 style={{
-                  fontFamily: "'Cormorant Garamond', serif",
+                  fontFamily: "'Montserrat', 'Roboto', sans-serif",
                   fontSize: "1.1rem",
                   fontWeight: 500,
                   letterSpacing: "0.05em",

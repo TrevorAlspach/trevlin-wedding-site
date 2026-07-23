@@ -8,9 +8,11 @@ import { MessageActions } from "./MessageActions";
 export const PreviewMessage = ({
   message,
   isLoading,
+  variant = "widget",
 }: {
   message: ChatMessage;
   isLoading: boolean;
+  variant?: "page" | "widget";
 }) => {
   return (
     <div
@@ -25,7 +27,12 @@ export const PreviewMessage = ({
         })}
       >
         {message.role === "assistant" && (
-          <div className="-mt-1 flex size-8 shrink-0 items-center justify-center rounded-full bg-background ring-1 ring-border">
+          <div
+            className={cn(
+              "-mt-1 flex size-8 shrink-0 items-center justify-center rounded-full ring-1 ring-border",
+              variant === "page" ? "bg-[#e9edc6]" : "bg-background",
+            )}
+          >
             <SparklesIcon size={14} />
           </div>
         )}
@@ -42,10 +49,18 @@ export const PreviewMessage = ({
             <div>
               <MessageContent
                 className={cn({
-                  "wrap-break-word w-fit rounded-2xl px-3 py-2 text-right text-white":
+                  "wrap-break-word w-fit rounded-2xl text-right text-white":
                     message.role === "user",
                   "bg-transparent px-0 py-0 text-left":
                     message.role === "assistant",
+                  "px-4 py-3 text-lg leading-relaxed md:px-5 md:py-3.5 md:text-xl":
+                    variant === "page" && message.role === "user",
+                  "text-lg leading-relaxed md:text-xl":
+                    variant === "page" && message.role === "assistant",
+                  "px-3 py-2 text-lg leading-relaxed":
+                    variant === "widget" && message.role === "user",
+                  "text-lg leading-relaxed":
+                    variant === "widget" && message.role === "assistant",
                 })}
                 data-testid="message-content"
                 style={
@@ -66,7 +81,11 @@ export const PreviewMessage = ({
   );
 };
 
-export const ThinkingMessage = () => {
+export const ThinkingMessage = ({
+  variant = "widget",
+}: {
+  variant?: "page" | "widget";
+}) => {
   return (
     <div
       className="group/message fade-in w-full animate-in duration-300"
@@ -74,14 +93,24 @@ export const ThinkingMessage = () => {
       data-testid="message-assistant-loading"
     >
       <div className="flex items-start justify-start gap-3">
-        <div className="-mt-1 flex size-8 shrink-0 items-center justify-center rounded-full bg-background ring-1 ring-border">
+        <div
+          className={cn(
+            "-mt-1 flex size-8 shrink-0 items-center justify-center rounded-full ring-1 ring-border",
+            variant === "page" ? "bg-[#e9edc6]" : "bg-background",
+          )}
+        >
           <div className="animate-pulse">
             <SparklesIcon size={14} />
           </div>
         </div>
 
         <div className="flex w-full flex-col gap-2 md:gap-4">
-          <div className="flex items-center gap-1 p-0 text-muted-foreground text-sm">
+          <div
+            className={cn(
+              "flex items-center gap-1 p-0 text-muted-foreground",
+              variant === "page" ? "text-base md:text-lg" : "text-base",
+            )}
+          >
             <span className="animate-pulse">Thinking</span>
             <span className="inline-flex">
               <span className="animate-bounce [animation-delay:0ms]">.</span>

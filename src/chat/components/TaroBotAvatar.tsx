@@ -120,11 +120,16 @@ export function TaroBotAvatar({
   return (
     <section
       className={cn(
-        "relative isolate flex shrink-0 items-center justify-center overflow-hidden border-b border-border",
-        variant === "page" ? "h-[clamp(11rem,27vh,17rem)]" : "h-32",
+        "relative isolate flex shrink-0 items-center justify-center",
+        variant === "page"
+          ? "h-[clamp(11rem,25vh,16rem)] items-end overflow-hidden"
+          : "h-32 overflow-hidden border-b border-border",
       )}
       style={{
-        background: `radial-gradient(circle at 50% 62%, ${HELMET_GLOWS[appearance.helmet]} 0%, rgba(245, 239, 224, 0.035) 38%, transparent 72%)`,
+        background:
+          variant === "page"
+            ? `radial-gradient(circle at 50% 62%, ${HELMET_GLOWS[appearance.helmet]} 0%, rgba(92, 110, 58, 0.9) 42%, #5c6e3a 72%)`
+            : `radial-gradient(circle at 50% 62%, ${HELMET_GLOWS[appearance.helmet]} 0%, rgba(245, 239, 224, 0.035) 38%, transparent 72%)`,
       }}
     >
       <motion.div
