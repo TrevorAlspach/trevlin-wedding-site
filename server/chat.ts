@@ -8,12 +8,12 @@ import { ChatOpenAI } from "@langchain/openai";
 import type { Request, Response } from "express";
 import { weddingFaqs } from "../shared/wedding-info.js";
 
-export const MAX_CHAT_HISTORY = 20;
-export const MAX_CHAT_MESSAGE_LENGTH = 2_000;
+export const MAX_CHAT_HISTORY = 50;
+export const MAX_CHAT_MESSAGE_LENGTH = 5_000;
 export const DEFAULT_CHAT_RATE_LIMIT = 10;
 export const DEFAULT_CHAT_RATE_WINDOW_MS = 60_000;
 export const DEFAULT_OPENAI_MODEL = "gpt-5.6-luna";
-export const RARE_CHAD_GON_CHANCE = 0.08;
+export const RARE_CHAD_GON_CHANCE = 0.15;
 
 export const TAROBOT_HELMETS = ["GREEN", "YELLOW", "RED"] as const;
 export const TAROBOT_FACES = [
