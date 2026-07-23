@@ -15,6 +15,7 @@ docker build -t trevlin-wedding-site .
 docker run --rm -p 8080:80 `
   -e ALLOWED_EMAILS="guest@example.com" `
   -e AUTH_PROVIDERS="google,aad" `
+  -e ACCESS_REQUEST_FORM_ID="your-formspree-form-id" `
   -e OPENAI_API_KEY `
   -e OPENAI_MODEL="gpt-5.6-luna" `
   --name trevlin-wedding-site trevlin-wedding-site
@@ -23,6 +24,12 @@ docker run --rm -p 8080:80 `
 Azure Easy Auth supplies the trusted `X-MS-CLIENT-PRINCIPAL` header in production.
 Anonymous local requests redirect to `/login`; use `npm run test:server` to exercise
 the authenticated request paths with simulated Easy Auth headers.
+
+Unlisted authenticated guests can request access when `ACCESS_REQUEST_FORM_ID` is
+set to a dedicated Formspree form ID. The server takes the requested email only
+from Azure Easy Auth, relays the request to Formspree, and limits each email to
+one successful request every 12 hours. Leave the variable empty to hide the
+request form and keep the original contact-the-couple message.
 
 For a non-container local build, copy `.env.example` to `.env`, add your local
 `OPENAI_API_KEY`, and keep that file untracked. `npm start` loads it when present.

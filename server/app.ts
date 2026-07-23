@@ -15,6 +15,14 @@ import {
   createGuestRateLimiter,
   type StreamingChatModel,
 } from "./chat.js";
+import {
+  AccessRequestValidationError,
+  createAccessRequestRateLimiter,
+  createFormspreeAccessRequestSender,
+  MAX_ACCESS_REQUEST_MESSAGE_LENGTH,
+  parseAccessRequestBody,
+  type AccessRequestSender,
+} from "./access-request.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_DIST_DIR = path.resolve(__dirname, "../../dist");
@@ -62,8 +70,13 @@ function page(title: string, body: string): string {
       h1 { margin: 0 0 .75rem; font-family: Georgia, serif; font-size: clamp(2rem, 8vw, 3rem); font-weight: 500; }
       p { line-height: 1.6; }
       .actions { display: grid; gap: .75rem; margin-top: 1.5rem; }
-      a { display: block; padding: .9rem 1rem; border-radius: .65rem; color: #314021; background: #f5efe0; text-align: center; text-decoration: none; font-weight: 700; }
-      a:hover { background: #fffaf0; }
+      a, button { display: block; width: 100%; padding: .9rem 1rem; border: 0; border-radius: .65rem; color: #314021; background: #f5efe0; text-align: center; text-decoration: none; font: inherit; font-weight: 700; cursor: pointer; }
+      a:hover, button:hover { background: #fffaf0; }
+      form { display: grid; gap: .75rem; margin-top: 1.5rem; }
+      label { font-weight: 700; }
+      textarea { width: 100%; min-height: 7rem; resize: vertical; padding: .8rem; border: 1px solid rgba(245,239,224,.55); border-radius: .65rem; color: #f5efe0; background: rgba(24,35,17,.38); font: inherit; }
+      textarea::placeholder { color: rgba(245,239,224,.68); }
+      .error { padding: .75rem; border-radius: .5rem; color: #3f160f; background: #ffd7cc; }
       .quiet { font-size: .9rem; opacity: .82; }
     </style>
   </head>
@@ -88,12 +101,67 @@ function loginPage(providers: ProviderName[]): string {
   );
 }
 
-function deniedPage(): string {
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function deniedPage({
+  email,
+  accessRequestsEnabled,
+  error,
+}: {
+  email?: string | null;
+  accessRequestsEnabled: boolean;
+  error?: string;
+}): string {
+  const requestForm =
+    email && accessRequestsEnabled
+      ? `<p>Signed in as <strong>${escapeHtml(email)}</strong>.</p>
+         ${error ? `<p class="error">${escapeHtml(error)}</p>` : ""}
+         <form method="post" action="/request-access">
+           <label for="message">Message <span class="quiet">(optional)</span></label>
+           <textarea id="message" name="message" maxlength="${MAX_ACCESS_REQUEST_MESSAGE_LENGTH}" placeholder="Tell us how you know the couple."></textarea>
+           <button type="submit">Request access</button>
+         </form>`
+      : `<p class="quiet">Access requests are not available right now. Please contact the couple directly.</p>`;
+
   return page(
     "Access denied",
     `<h1>Access denied</h1>
-     <p>This account is not on the guest list. Try another account or contact the couple if this looks wrong.</p>
+     <p>This account is not on the guest list. You can request access or try another account.</p>
+     ${requestForm}
      <div class="actions"><a href="/.auth/logout?post_logout_redirect_uri=%2Flogin">Try another account</a></div>`,
+  );
+}
+
+function accessRequestSubmittedPage(email: string): string {
+  return page(
+    "Access requested",
+    `<h1>Request sent</h1>
+     <p>We sent an access request for <strong>${escapeHtml(email)}</strong>. You will be able to sign in after the couple approves it.</p>
+     <div class="actions"><a href="/.auth/logout?post_logout_redirect_uri=%2Flogin">Return to sign in</a></div>`,
+  );
+}
+
+function accessRequestUnavailablePage(): string {
+  return page(
+    "Request unavailable",
+    `<h1>Request not sent</h1>
+     <p>We could not send your request right now. Please try again later or contact the couple directly.</p>
+     <div class="actions"><a href="/">Try again</a></div>`,
+  );
+}
+
+function accessRequestLimitedPage(): string {
+  return page(
+    "Request already sent",
+    `<h1>Request already sent</h1>
+     <p>We already received a recent request from this account. Please give the couple some time to approve it.</p>`,
   );
 }
 
@@ -117,6 +185,28 @@ const apiBodyErrorHandler: ErrorRequestHandler = (error, request, response, next
   response.status(500).json({ error: "The request could not be completed." });
 };
 
+const accessRequestBodyErrorHandler: ErrorRequestHandler = (
+  error,
+  request,
+  response,
+  next,
+) => {
+  if (request.path !== "/request-access") {
+    next(error);
+    return;
+  }
+
+  const status = typeof error?.status === "number" ? error.status : 500;
+  response.setHeader("Cache-Control", "no-store");
+  if (status === 400 || status === 413) {
+    response.status(400).type("html").send(accessRequestUnavailablePage());
+    return;
+  }
+
+  console.error("Access request failed", error);
+  response.status(500).type("html").send(accessRequestUnavailablePage());
+};
+
 export type CreateAppOptions = {
   allowedEmails?: Set<string>;
   providers?: ProviderName[];
@@ -124,6 +214,11 @@ export type CreateAppOptions = {
   chatModel?: StreamingChatModel;
   chatRateLimit?: {
     maxRequests?: number;
+    windowMs?: number;
+    now?: () => number;
+  };
+  accessRequestSender?: AccessRequestSender | null;
+  accessRequestRateLimit?: {
     windowMs?: number;
     now?: () => number;
   };
@@ -135,10 +230,17 @@ export function createApp({
   distDir = DEFAULT_DIST_DIR,
   chatModel,
   chatRateLimit,
+  accessRequestSender,
+  accessRequestRateLimit,
 }: CreateAppOptions = {}) {
   const app = express();
   const indexPath = path.join(distDir, "index.html");
   const checkChatRateLimit = createGuestRateLimiter(chatRateLimit);
+  const sendAccessRequest =
+    accessRequestSender === undefined
+      ? createFormspreeAccessRequestSender()
+      : accessRequestSender ?? undefined;
+  const accessRequestRateLimiter = createAccessRequestRateLimiter(accessRequestRateLimit);
 
   app.disable("x-powered-by");
   app.use(securityMiddleware());
@@ -157,6 +259,81 @@ export function createApp({
     response.status(200).type("html").send(loginPage(providers));
   });
 
+  app.post(
+    "/request-access",
+    express.urlencoded({ extended: false, limit: "4kb" }),
+    async (request, response) => {
+      response.setHeader("Cache-Control", "no-store");
+      const principal = decodePrincipal(request.get("x-ms-client-principal"));
+      if (!principal) {
+        response.redirect(303, "/login");
+        return;
+      }
+
+      const email = getPrincipalEmail(principal);
+      if (!email) {
+        response
+          .status(403)
+          .type("html")
+          .send(deniedPage({ accessRequestsEnabled: false }));
+        return;
+      }
+
+      if (allowedEmails.has(email)) {
+        response.redirect(303, "/");
+        return;
+      }
+
+      if (!sendAccessRequest) {
+        response.status(503).type("html").send(accessRequestUnavailablePage());
+        return;
+      }
+
+      let message: string;
+      try {
+        ({ message } = parseAccessRequestBody(request.body));
+      } catch (error) {
+        if (!(error instanceof AccessRequestValidationError)) throw error;
+        response
+          .status(400)
+          .type("html")
+          .send(
+            deniedPage({
+              email,
+              accessRequestsEnabled: true,
+              error: "Please shorten your message and try again.",
+            }),
+          );
+        return;
+      }
+
+      const rateLimit = accessRequestRateLimiter.reserve(email);
+      if (!rateLimit.allowed) {
+        response.setHeader("Retry-After", String(rateLimit.retryAfterSeconds));
+        response.status(429).type("html").send(accessRequestLimitedPage());
+        return;
+      }
+
+      try {
+        await sendAccessRequest({
+          email,
+          provider: principal.auth_typ,
+          message,
+          requestedAt: new Date().toISOString(),
+        });
+      } catch (error) {
+        accessRequestRateLimiter.release(email);
+        console.error("Access request delivery failed", error);
+        response.status(502).type("html").send(accessRequestUnavailablePage());
+        return;
+      }
+
+      response.status(200).type("html").send(accessRequestSubmittedPage(email));
+    },
+  );
+
+  app.use(accessRequestBodyErrorHandler);
+
   app.use((request, response, next) => {
     const apiRequest = isApiRequest(request.path);
     const rawPrincipal = request.get("x-ms-client-principal");
@@ -174,7 +351,10 @@ export function createApp({
       if (apiRequest) {
         return response.status(401).json({ error: "Your session has expired. Please sign in again." });
       }
-      return response.status(401).type("html").send(deniedPage());
+      return response
+        .status(401)
+        .type("html")
+        .send(deniedPage({ accessRequestsEnabled: false }));
     }
 
     const email = getPrincipalEmail(principal);
@@ -192,7 +372,10 @@ export function createApp({
       if (apiRequest) {
         return response.status(403).json({ error: "This account does not have access." });
       }
-      return response.status(403).type("html").send(deniedPage());
+      return response
+        .status(403)
+        .type("html")
+        .send(deniedPage({ email, accessRequestsEnabled: Boolean(sendAccessRequest) }));
     }
 
     response.locals.authenticatedEmail = email;

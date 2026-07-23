@@ -45,7 +45,9 @@ jobs:
             az containerapp secret set \
               --name "${{ vars.AZURE_CONTAINER_APP_NAME }}" \
               --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
-              --secrets openai-api-key="${{ secrets.OPENAI_API_KEY }}"
+              --secrets \
+                openai-api-key="${{ secrets.OPENAI_API_KEY }}" \
+                access-request-form-id="${{ secrets.ACCESS_REQUEST_FORM_ID }}"
 
             az containerapp update \
               --name "${{ vars.AZURE_CONTAINER_APP_NAME }}" \
@@ -53,4 +55,5 @@ jobs:
               --image "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.value }}" \
               --set-env-vars \
                 OPENAI_API_KEY=secretref:openai-api-key \
+                ACCESS_REQUEST_FORM_ID=secretref:access-request-form-id \
                 OPENAI_MODEL="${{ vars.OPENAI_MODEL || 'gpt-5.6-luna' }}"

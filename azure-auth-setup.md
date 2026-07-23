@@ -9,7 +9,7 @@ non-empty `ALLOWED_EMAILS` value on public ingress unless Easy Auth is enabled.
 1. Register and enable Google Easy Auth while the old Nginx image is still
    deployed. Initially choose **Require authentication** so Azure rejects or
    redirects anonymous requests.
-2. Add the `guest-emails` and `openai-api-key` secrets and their environment variables.
+2. Add the `guest-emails`, `openai-api-key`, and `access-request-form-id` secrets and their environment variables.
 3. Deploy the new Node-based image.
 4. Confirm an allowlisted Google account succeeds and an unlisted account gets
    `403`.
@@ -36,6 +36,7 @@ Then add these container environment variables:
 | `AUTH_PROVIDERS` | `google` initially; use `google,aad` after Microsoft is configured |
 | `OPENAI_API_KEY` | Secret reference to `openai-api-key` |
 | `OPENAI_MODEL` | `gpt-5.6-luna` by default; use `gpt-5.6-terra` if quality testing warrants it |
+| `ACCESS_REQUEST_FORM_ID` | Secret reference to `access-request-form-id` |
 
 Email comparison is case-insensitive. Invalid entries make the server refuse to
 start, and an empty list denies every authenticated account. Updating the secret
@@ -43,7 +44,34 @@ requires restarting the active revision so the process reloads it.
 
 Do not put the real guest list in a GitHub variable or committed `.env` file.
 
-## 2. Configure TaroBot
+## 2. Configure access-request email
+
+Create a dedicated form in the same Formspree account used for RSVPs and set its
+notification recipient to the couple's email address. Do not reuse the RSVP form:
+keeping the submissions separate makes notifications, filtering, and deletion
+much easier to manage.
+
+Copy only the form ID from the endpoint shown by Formspree. For example, if the
+endpoint is `https://formspree.io/f/abcdwxyz`, the value is `abcdwxyz`.
+
+Create a GitHub Actions secret named `ACCESS_REQUEST_FORM_ID`. The deployment
+workflow copies it into the Container App secret named `access-request-form-id`
+and exposes it as the server-only `ACCESS_REQUEST_FORM_ID` environment variable.
+The ID is never embedded in the browser bundle. If the variable is absent or
+empty, the request form stays hidden and no email delivery is attempted.
+
+An unlisted guest must authenticate before seeing the form. The server ignores
+any submitted email field and instead uses the normalized email claim supplied by
+Azure Easy Auth. After a successful submission, that email cannot send another
+request for 12 hours in the same running container instance. Formspree delivery
+failures do not consume the cooldown, so the guest can retry.
+
+When approving a request, add the verified email from the notification to the
+`guest-emails` secret and restart the active revision so `ALLOWED_EMAILS` is
+reloaded. The approval step is intentionally manual; receiving a request never
+grants access by itself.
+
+## 3. Configure TaroBot
 
 Create a GitHub Actions secret named `OPENAI_API_KEY`. The deployment workflow
 copies it into the Container App secret named `openai-api-key` and exposes the
@@ -55,7 +83,7 @@ Never use a `VITE_` prefix for either value. Vite embeds such variables in the
 browser bundle. Rotate the OpenAI key in GitHub Actions and redeploy if the key
 changes.
 
-## 3. Enable Google authentication
+## 4. Enable Google authentication
 
 Choose the hostname guests will actually use. Register both the custom hostname
 and the default Azure hostname only if both should support login.
@@ -83,7 +111,7 @@ The login endpoint used by the public page is:
 /.auth/login/google?post_login_redirect_uri=/
 ```
 
-## 4. Add Microsoft authentication
+## 5. Add Microsoft authentication
 
 This can be done after Google is working.
 
@@ -105,7 +133,7 @@ The Microsoft button uses:
 /.auth/login/aad?post_login_redirect_uri=/
 ```
 
-## 5. Container App settings
+## 6. Container App settings
 
 - Keep ingress HTTPS-only and target port `80`.
 - Use `/healthz` for HTTP startup, liveness, or readiness probes.
@@ -120,7 +148,7 @@ Azure Easy Auth strips externally supplied identity headers and injects its own
 header and accepts only explicit email, UPN, or `preferred_username` claims. A
 display-name claim is intentionally never used for authorization.
 
-## 6. Verify before inviting guests
+## 7. Verify before inviting guests
 
 Use a private/incognito browser window for each case:
 
@@ -130,10 +158,14 @@ Use a private/incognito browser window for each case:
 4. Sign out at `/.auth/logout?post_logout_redirect_uri=/login`.
 5. Sign in with an account not on the list: it must return **403 Access denied**.
 6. Repeat with Microsoft after adding that provider.
-7. Test the default `azurecontainerapps.io` hostname. It must enforce the same
+7. Sign in with an unlisted account, submit an access request, and confirm the
+   notification contains that account's verified email and optional message.
+8. Submit again with the same account and confirm the site reports that a recent
+   request was already received without sending a second notification.
+9. Test the default `azurecontainerapps.io` hostname. It must enforce the same
    allowlist; if it is not intended for guests, do not register OAuth callbacks for
    it.
-8. Open TaroBot and complete a real multi-turn conversation. Confirm it answers
+10. Open TaroBot and complete a real multi-turn conversation. Confirm it answers
    from the FAQ facts and admits when an answer is unavailable.
 
 If an authenticated provider is denied because no supported email claim was

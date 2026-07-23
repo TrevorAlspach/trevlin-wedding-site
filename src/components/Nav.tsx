@@ -35,11 +35,19 @@ const Nav: React.FC = () => {
         textTransform: "uppercase",
       }}
     >
-      <Button component={Link} to="/" sx={linkSx}>Home</Button>
-      <Button component={Link} to="/registry" sx={linkSx}>Registry</Button>
-      <Button component={Link} to="/faq" sx={linkSx}>FAQs</Button>
-      <Button component={Link} to="/chat" sx={linkSx}>TaroBot</Button>
-      <Button component={Link} to="/rsvp" sx={linkSx}>RSVP</Button>
+      <Button component={Link} to="/" sx={linkSx}>
+        Home
+      </Button>
+      <Button component={Link} to="/registry" sx={linkSx}>
+        Registry
+      </Button>
+      <Button component={Link} to="/faq" sx={linkSx}>
+        FAQs
+      </Button>
+      <Button component={Link} to="/chat" sx={linkSx}>
+        TaroBot
+      </Button>
+      {/* <Button component={Link} to="/rsvp" sx={linkSx}>RSVP</Button> */}
     </Box>
   );
 };

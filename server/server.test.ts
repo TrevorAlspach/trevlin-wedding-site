@@ -24,6 +24,15 @@ import {
   validateChatBody,
   type StreamingChatModel,
 } from "./chat.js";
+import {
+  MAX_ACCESS_REQUEST_MESSAGE_LENGTH,
+  AccessRequestDeliveryError,
+  AccessRequestValidationError,
+  createAccessRequestRateLimiter,
+  createFormspreeAccessRequestSender,
+  parseAccessRequestBody,
+  type AccessRequest,
+} from "./access-request.js";
 import { weddingFaqs } from "../shared/wedding-info.js";
 
 let distDir: string;
@@ -95,6 +104,82 @@ test("decodes explicit email claims but rejects display-name claims", () => {
 
   const displayNamePrincipal = decodePrincipal(principal([{ typ: "name", val: "guest@example.com" }]));
   assert.equal(getPrincipalEmail(displayNamePrincipal), null);
+});
+
+test("validates access request messages", () => {
+  assert.deepEqual(parseAccessRequestBody({}), { message: "" });
+  assert.deepEqual(parseAccessRequestBody({ message: "  Please add me.  " }), {
+    message: "Please add me.",
+  });
+  assert.throws(() => parseAccessRequestBody(null), AccessRequestValidationError);
+  assert.throws(
+    () => parseAccessRequestBody({ message: "x".repeat(MAX_ACCESS_REQUEST_MESSAGE_LENGTH + 1) }),
+    AccessRequestValidationError,
+  );
+});
+
+test("limits access requests by verified email and permits a retry after release", () => {
+  let currentTime = 1_000;
+  const limit = createAccessRequestRateLimiter({
+    windowMs: 10_000,
+    now: () => currentTime,
+  });
+
+  assert.equal(limit.reserve("one@example.com").allowed, true);
+  assert.equal(limit.reserve("one@example.com").allowed, false);
+  assert.equal(limit.reserve("two@example.com").allowed, true);
+  limit.release("one@example.com");
+  assert.equal(limit.reserve("one@example.com").allowed, true);
+  currentTime += 10_000;
+  assert.equal(limit.reserve("one@example.com").allowed, true);
+});
+
+test("posts access requests to the configured Formspree form", async () => {
+  let submittedUrl = "";
+  let submittedBody = "";
+  const sender = createFormspreeAccessRequestSender(
+    "request123",
+    async (input, init) => {
+      submittedUrl = String(input);
+      submittedBody = String(init?.body);
+      return new Response(JSON.stringify({ ok: true }), { status: 200 });
+    },
+  );
+  assert.ok(sender);
+
+  await sender({
+    email: "guest@example.com",
+    provider: "google",
+    requestedAt: "2026-07-22T12:00:00.000Z",
+    message: "Please add me.",
+  });
+
+  assert.equal(submittedUrl, "https://formspree.io/f/request123");
+  assert.deepEqual(JSON.parse(submittedBody), {
+    _subject: "Wedding website access request",
+    email: "guest@example.com",
+    identity_provider: "google",
+    requested_at: "2026-07-22T12:00:00.000Z",
+    message: "Please add me.",
+  });
+});
+
+test("fails closed when Formspree rejects an access request", async () => {
+  const sender = createFormspreeAccessRequestSender(
+    "request123",
+    async () => new Response(null, { status: 429 }),
+  );
+  assert.ok(sender);
+  await assert.rejects(
+    () =>
+      sender({
+        email: "guest@example.com",
+        provider: "google",
+        requestedAt: "2026-07-22T12:00:00.000Z",
+        message: "",
+      }),
+    AccessRequestDeliveryError,
+  );
 });
 
 test("strictly validates chat request messages", () => {
@@ -248,6 +333,152 @@ test("denies an authenticated email that is not on the list", async () => {
     });
     assert.equal(apiResponse.status, 403);
     assert.match(apiResponse.headers.get("content-type") ?? "", /application\/json/);
+  } finally {
+    await testApp.close();
+  }
+});
+
+test("shows the access request form only when delivery is configured", async () => {
+  const configuredApp = await startTestApp({ accessRequestSender: async () => {} });
+  const disabledApp = await startTestApp({ accessRequestSender: null });
+  try {
+    const configured = await fetch(`${configuredApp.baseUrl}/`, {
+      headers: authHeaders("stranger@example.com"),
+    });
+    assert.equal(configured.status, 403);
+    const configuredHtml = await configured.text();
+    assert.match(configuredHtml, /action="\/request-access"/);
+    assert.match(configuredHtml, /stranger@example\.com/);
+
+    const disabled = await fetch(`${disabledApp.baseUrl}/`, {
+      headers: authHeaders("stranger@example.com"),
+    });
+    assert.equal(disabled.status, 403);
+    assert.doesNotMatch(await disabled.text(), /action="\/request-access"/);
+  } finally {
+    await configuredApp.close();
+    await disabledApp.close();
+  }
+});
+
+test("submits an access request using only the verified identity email", async () => {
+  const requests: AccessRequest[] = [];
+  const testApp = await startTestApp({
+    accessRequestSender: async (request) => {
+      requests.push(request);
+    },
+  });
+
+  try {
+    const response = await fetch(`${testApp.baseUrl}/request-access`, {
+      method: "POST",
+      headers: {
+        ...authHeaders("Stranger@Example.com"),
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        email: "spoofed@example.com",
+        message: "  I am an invited guest.  ",
+      }),
+    });
+
+    assert.equal(response.status, 200);
+    assert.match(await response.text(), /Request sent/);
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0]?.email, "stranger@example.com");
+    assert.equal(requests[0]?.provider, "google");
+    assert.equal(requests[0]?.message, "I am an invited guest.");
+    assert.match(requests[0]?.requestedAt ?? "", /^\d{4}-\d{2}-\d{2}T/);
+  } finally {
+    await testApp.close();
+  }
+});
+
+test("requires authentication for access requests and redirects allowed guests", async () => {
+  let senderCalled = false;
+  const testApp = await startTestApp({
+    accessRequestSender: async () => {
+      senderCalled = true;
+    },
+  });
+
+  try {
+    const anonymous = await fetch(`${testApp.baseUrl}/request-access`, {
+      method: "POST",
+      redirect: "manual",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: "message=hello",
+    });
+    assert.equal(anonymous.status, 303);
+    assert.equal(anonymous.headers.get("location"), "/login");
+
+    const allowed = await fetch(`${testApp.baseUrl}/request-access`, {
+      method: "POST",
+      redirect: "manual",
+      headers: {
+        ...authHeaders("guest@example.com"),
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: "message=hello",
+    });
+    assert.equal(allowed.status, 303);
+    assert.equal(allowed.headers.get("location"), "/");
+    assert.equal(senderCalled, false);
+  } finally {
+    await testApp.close();
+  }
+});
+
+test("rate limits duplicate access requests", async () => {
+  let sendCount = 0;
+  const testApp = await startTestApp({
+    accessRequestSender: async () => {
+      sendCount += 1;
+    },
+  });
+  const request = () =>
+    fetch(`${testApp.baseUrl}/request-access`, {
+      method: "POST",
+      headers: {
+        ...authHeaders("stranger@example.com"),
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: "message=hello",
+    });
+
+  try {
+    assert.equal((await request()).status, 200);
+    const duplicate = await request();
+    assert.equal(duplicate.status, 429);
+    assert.ok(Number(duplicate.headers.get("retry-after")) >= 1);
+    assert.equal(sendCount, 1);
+  } finally {
+    await testApp.close();
+  }
+});
+
+test("allows an access request retry after a delivery failure", async () => {
+  let sendCount = 0;
+  const testApp = await startTestApp({
+    accessRequestSender: async () => {
+      sendCount += 1;
+      if (sendCount === 1) throw new Error("delivery failed");
+    },
+  });
+  const request = () =>
+    fetch(`${testApp.baseUrl}/request-access`, {
+      method: "POST",
+      headers: {
+        ...authHeaders("stranger@example.com"),
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: "message=hello",
+    });
+
+  try {
+    assert.equal((await request()).status, 502);
+    assert.equal((await request()).status, 200);
+    assert.equal(sendCount, 2);
   } finally {
     await testApp.close();
   }
