@@ -39,6 +39,7 @@ function securityMiddleware(): RequestHandler {
         imgSrc: ["'self'", "data:", "https:"],
         connectSrc: ["'self'", "https:"],
         formAction: ["'self'", "https://formspree.io"],
+        frameSrc: ["'self'", "https://www.google.com"],
         frameAncestors: ["'none'"],
         baseUri: ["'self'"],
         objectSrc: ["'none'"],

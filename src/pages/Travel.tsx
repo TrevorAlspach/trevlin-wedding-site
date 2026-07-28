@@ -127,7 +127,7 @@ const restaurantGroups = [
       "Cafe Intermezzo",
       "Moge Tee",
       "White Windmill",
-      "Coffee: Cafe Lucia, Dancing Goats, For Five, Hara's",
+      "Coffee: Cafe Lucia, Dancing Goats, For Five, Haraz",
     ],
   },
   {
@@ -843,7 +843,6 @@ const Travel: React.FC = () => {
         size="small"
         aria-label="Jump to the travel map"
         sx={{
-          display: { xs: "inline-flex", md: "none" },
           position: "fixed",
           right: 16,
           bottom: 16,
