@@ -89,6 +89,11 @@ export const weddingFaqs: readonly WeddingFaqItem[] = [
     answer: "Right here! :)))",
   },
   {
+    question: "Is the venue a barn?",
+    answer:
+      "The Trolley Barn is a historic Victorian-style venue in the heart of Inman Park, one of Atlanta's oldest neighborhoods. It's named after its original purpose as a streetcar depot in the 19th century, but it's been repurposed today into a community center and event venue. So less farmhouse, more Victorian charm!",
+  },
+  {
     question: "How do you pronounce 'Alspach'?",
     answer: "'All-spa'. It's German!",
   },
