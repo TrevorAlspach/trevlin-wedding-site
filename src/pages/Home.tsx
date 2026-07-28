@@ -3,13 +3,13 @@ import { Box, Typography, Button, Container } from "@mui/material";
 import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
 import FavoriteBorderRoundedIcon from "@mui/icons-material/FavoriteBorderRounded";
 import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
-import { Link } from "react-router-dom";
+//import { Link } from "react-router-dom";
 import wideGoobers from "../assets/widegoobers.jpg";
 import Nav from "../components/Nav";
 
 const IVORY = "#f5efe0";
 const CORAL = "#ff9d6c";
-const CORAL_HOVER = "#f08152";
+//const CORAL_HOVER = "#f08152";
 const BUTTER = "#f7d076";
 const INK = "#26311c";
 const BEIGE = "#e9edc6";
@@ -338,7 +338,7 @@ const Home: React.FC = () => {
       </Box>
 
       {/* Footer CTA */}
-      <Container
+      {/* <Container
         maxWidth="md"
         sx={{ py: { xs: 8, md: 10 }, textAlign: "center" }}
       >
@@ -375,7 +375,7 @@ const Home: React.FC = () => {
         >
           RSVP
         </Button>
-      </Container>
+      </Container> */}
     </Box>
   );
 };
