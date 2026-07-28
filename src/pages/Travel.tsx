@@ -1,6 +1,7 @@
 import React from "react";
-import { Box, Button, Typography } from "@mui/material";
+import { Box, Button, Fab, Typography } from "@mui/material";
 import CameraAltOutlinedIcon from "@mui/icons-material/CameraAltOutlined";
+import MapOutlinedIcon from "@mui/icons-material/MapOutlined";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import travelOne from "../assets/travel-1.png";
 import travelTwo from "../assets/travel-2.png";
@@ -778,6 +779,92 @@ const Travel: React.FC = () => {
           </Box>
         </Box>
       </Box>
+
+      <Box
+        id="travel-map"
+        component="section"
+        aria-labelledby="travel-map-heading"
+        sx={{
+          scrollMarginTop: 16,
+          backgroundColor: IVORY,
+          color: INK,
+          px: { xs: 2, md: 4 },
+          pt: { xs: 7, md: 9 },
+          pb: { xs: 3, md: 5 },
+        }}
+      >
+        <Box sx={{ maxWidth: 1180, mx: "auto" }}>
+          <Typography
+            id="travel-map-heading"
+            component="h2"
+            sx={{
+              fontFamily: "'Cormorant Garamond', serif",
+              fontSize: { xs: "2.6rem", md: "3.6rem" },
+              fontStyle: "italic",
+              fontWeight: 300,
+              lineHeight: 1.05,
+              mb: { xs: 3, md: 4 },
+              textAlign: "center",
+            }}
+          >
+            Explore Atlanta
+          </Typography>
+          <Box
+            sx={{
+              width: "100%",
+              overflow: "hidden",
+              border: "1px solid rgba(38, 49, 28, 0.2)",
+              lineHeight: 0,
+            }}
+          >
+            <Box
+              component="iframe"
+              title="Wedding travel recommendations around Atlanta"
+              src="https://www.google.com/maps/d/embed?mid=1_Pl0wnBABm68DASDSCD5zxiscokjgrU&ehbc=2E312F&noprof=1"
+              width="640"
+              height="480"
+              loading="lazy"
+              sx={{
+                display: "block",
+                width: "100%",
+                height: { xs: "70vh", sm: 520, md: 640 },
+                minHeight: 480,
+                border: 0,
+              }}
+            />
+          </Box>
+        </Box>
+      </Box>
+
+      <Fab
+        component="a"
+        href="#travel-map"
+        variant="extended"
+        size="small"
+        aria-label="Jump to the travel map"
+        sx={{
+          display: { xs: "inline-flex", md: "none" },
+          position: "fixed",
+          right: 16,
+          bottom: 16,
+          zIndex: 1200,
+          minHeight: 36,
+          height: 36,
+          px: 1.75,
+          color: INK,
+          backgroundColor: CORAL,
+          fontFamily: "Montserrat, sans-serif",
+          fontSize: "0.68rem",
+          fontWeight: 700,
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          boxShadow: "0 4px 14px rgba(38, 49, 28, 0.3)",
+          "&:hover": { backgroundColor: CORAL_HOVER },
+        }}
+      >
+        <MapOutlinedIcon sx={{ mr: 0.75, fontSize: 17 }} />
+        Jump to map
+      </Fab>
     </Box>
   );
 };
