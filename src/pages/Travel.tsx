@@ -2,6 +2,9 @@ import React from "react";
 import { Box, Button, Typography } from "@mui/material";
 import CameraAltOutlinedIcon from "@mui/icons-material/CameraAltOutlined";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import travelOne from "../assets/travel-1.png";
+import travelTwo from "../assets/travel-2.png";
+import travelThree from "../assets/travel-3.png";
 
 const IVORY = "#f5efe0";
 const CORAL = "#ff9d6c";
@@ -12,85 +15,136 @@ const BEIGE = "#e9edc6";
 
 const hotels = [
   {
-    name: "Wylie Hotel",
-    eyebrow: "Old Fourth Ward",
+    name: "Loews Atlanta Hotel",
+    eyebrow: "Where we'll be staying · 50 rooms",
     description:
-      "A charming boutique stay on Ponce de Leon Avenue, close to the BeltLine, Ponce City Market, and plenty of neighborhood favorites.",
-    url: "https://www.wyliehotel.com/",
+      "Stay with us at the Loews! Our room block includes 50 rooms at a discounted rate for wedding guests.",
+    url: "https://www.loewshotels.com/atlanta-hotel/group-tranalspach-wedding-room-block",
   },
   {
-    name: "Hotel Clermont",
-    eyebrow: "Poncey-Highland",
+    name: "Moxy + AC Midtown Atlanta",
+    eyebrow: "10 rooms each · 20 rooms total",
     description:
-      "A colorful Atlanta landmark with thoughtfully designed rooms, a rooftop, and an easy home base for exploring the east side.",
-    url: "https://www.hotelclermont.com/",
-  },
-  {
-    name: "FORTH Hotel",
-    eyebrow: "Historic Fourth Ward",
-    description:
-      "A modern stay directly on the BeltLine's Eastside Trail, with restaurants, bars, a pool, and views of the Atlanta skyline.",
-    url: "https://forthatlanta.com/hotel",
+      "Choose between the Moxy and AC Hotel in Midtown. We've reserved 10 rooms at each hotel at a discounted rate for wedding guests.",
+    url: "https://www.marriott.com/event-reservations/reservation-link.mi?id=1784255237720&key=GRP&app=resvlink&_branch_match_id=1380215872398857711&_branch_referrer=H4sIAAAAAAAAA8soKSkottLXTywo0MtNLCrKzC8p0UvOz9UvSi0uy0wtN7IHytiCODmZedlqmSm2huYWJkampkbG5uZGBmrZqZW27kEBanVFqWmpQO156fFJRfnlxalFts4ZRfm5qQAktQdDYQAAAA%3D%3D",
   },
 ] as const;
 
-const thingsToDo = [
+const activities = [
   {
     number: "01",
-    name: "Atlanta BeltLine",
-    category: "Walk & explore",
+    name: "Georgia Aquarium",
+    category: "3–4 hours",
     description:
-      "Take a stroll along the Eastside Trail for public art, patios, parks, and an easy path between some of Atlanta's liveliest neighborhoods.",
-    url: "https://beltline.org/visitor-information/",
+      "Purchase a ticket online to reserve a time slot in advance. Go during the week if you can to avoid the crowds!",
+    url: "https://www.georgiaaquarium.org/",
   },
   {
     number: "02",
-    name: "Ponce City Market",
-    category: "Eat & shop",
-    description:
-      "Wander the food hall and shops, grab a drink, or head up to the roof before stepping right onto the BeltLine.",
-    url: "https://poncecitymarket.com/",
-  },
-  {
-    number: "03",
-    name: "Krog Street Market",
-    category: "Local flavors",
-    description:
-      "Stop into this Inman Park food hall for coffee, cocktails, and a choose-your-own-adventure mix of local bites.",
-    url: "https://krogstreetmarket.com/",
-  },
-  {
-    number: "04",
-    name: "Little Five Points",
-    category: "Only in Atlanta",
-    description:
-      "Browse vintage shops, record stores, murals, and the wonderfully offbeat character of one of Atlanta's most iconic neighborhoods.",
-    url: "https://littlefivepoints.net/",
-  },
-  {
-    number: "05",
     name: "Atlanta Botanical Garden",
-    category: "Slow afternoon",
+    category: "3–4 hours",
     description:
-      "Spend a few peaceful hours among the conservatories, seasonal gardens, and leafy paths beside Piedmont Park.",
+      "Purchase a ticket online to reserve a time slot in advance. Tulips and daffodils will be in season!",
     url: "https://atlantabg.org/",
   },
   {
-    number: "06",
-    name: "Martin Luther King, Jr. National Historical Park",
-    category: "History & culture",
+    number: "03",
+    name: "World of Coca-Cola",
+    category: "2 hours",
     description:
-      "Visit Sweet Auburn to learn about Dr. King's life and legacy through the historic neighborhood, church, and National Park Service exhibits.",
-    url: "https://www.nps.gov/malu/index.htm",
+      "Purchase a ticket online to reserve a time slot in advance. Try the red cream soda!",
+    url: "https://www.worldofcoca-cola.com/",
+  },
+
+  {
+    number: "04",
+    name: "Buford Highway",
+    category: "1 hour",
+    description:
+      "Drive 15 minutes out of the city to try the best Hispanic and Asian restaurants in the South. Our favorites are Pho Bac, Canton House, and Kamayan—reservations are highly recommended.",
+    url: "https://discoveratlanta.com/dining/buford-highway/",
+  },
+  {
+    number: "05",
+    name: "BeltLine",
+    category: "1–5 hours · depends on you!",
+    description:
+      "Find an entrance around Piedmont Park, Ponce City Market, or Inman Park and enjoy a stroll through the city. Inman Park's Victory Sandwich Bar has a great Jack and Coke slushie!",
+    url: "https://beltline.org/visitor-information/",
+  },
+  {
+    number: "06",
+    name: "Atlantic Station",
+    category: "Shopping",
+    description:
+      "Show up and enjoy free parking for two hours for any last-minute shopping if you don't want to deal with the mall.",
+    url: "https://atlanticstation.com/",
+  },
+  {
+    number: "07",
+    name: "Farmer's Market",
+    category: "Saturday · 9 AM–1 PM",
+    description:
+      "Find it at Piedmont Park on Saturdays only. We always stop by the coffee stand!",
+    url: "https://piedmontpark.org/green-market/",
   },
 ] as const;
 
-// To add your photos later, place the files in /public and set each src below
-// (for example, src: "/travel-1.jpg"). Update the alt text to describe the photo.
+const restaurantGroups = [
+  {
+    number: "01",
+    name: "Bang for your buck",
+    restaurants: [
+      "Steamhouse Lounge",
+      "Urban Hai",
+      "bb.q Chicken (Korean fried chicken)",
+      "Nagomiya (the ramen/sushi combos)",
+      "DUA (poke bowls)",
+      "Xi'an Gourmet House",
+      "Establishment (happy hour)",
+      "Silver Skillet",
+    ],
+  },
+  {
+    number: "02",
+    name: "Delicious with city prices",
+    restaurants: [
+      "Tabla",
+      "E Ramen",
+      "Agora",
+      "Boqueria",
+      "Pasta da Pulcinella",
+      "26 Thai",
+      "Rreal Tacos",
+      "Crescent City Kitchen",
+    ],
+  },
+  {
+    number: "03",
+    name: "I want a sweet treat",
+    restaurants: [
+      "Cafe Intermezzo",
+      "Moge Tee",
+      "White Windmill",
+      "Coffee: Cafe Lucia, Dancing Goats, For Five, Hara's",
+    ],
+  },
+  {
+    number: "04",
+    name: "Familiar faces",
+    restaurants: ["Chipotle", "Shake Shack", "5 Guys", "Chick-fil-A", "Panera"],
+  },
+  {
+    number: "05",
+    name: "Higher end",
+    restaurants: ["The Consulate", "Rumi's Kitchen"],
+  },
+] as const;
+
 const travelPhotos = [
-  { src: "", alt: "Travel photo one" },
-  { src: "", alt: "Travel photo two" },
-  { src: "", alt: "Travel photo three" },
+  { src: travelOne, alt: "" },
+  { src: travelThree, alt: "" },
+  { src: travelTwo, alt: "" },
 ] as const;
 
 interface HotelCardProps {
@@ -182,13 +236,13 @@ const HotelCard: React.FC<HotelCardProps> = ({
         "&:hover": { backgroundColor: CORAL_HOVER },
       }}
     >
-      Visit hotel
+      Reserve a room
     </Button>
   </Box>
 );
 
 interface ThingCardProps {
-  item: (typeof thingsToDo)[number];
+  item: (typeof activities)[number];
   gridColumn: { xs: string; md: string };
 }
 
@@ -288,17 +342,91 @@ const ThingCard: React.FC<ThingCardProps> = ({ item, gridColumn }) => (
   </Box>
 );
 
+interface RestaurantCardProps {
+  group: (typeof restaurantGroups)[number];
+  gridColumn: { xs: string; md: string };
+}
+
+const RestaurantCard: React.FC<RestaurantCardProps> = ({
+  group,
+  gridColumn,
+}) => (
+  <Box
+    component="article"
+    sx={{
+      gridColumn,
+      color: INK,
+      backgroundColor: IVORY,
+      border: "1px solid rgba(38, 49, 28, 0.16)",
+      p: { xs: 3, md: 4 },
+    }}
+  >
+    <Box
+      sx={{
+        display: "flex",
+        justifyContent: "space-between",
+        gap: 2,
+        alignItems: "baseline",
+        mb: 3,
+      }}
+    >
+      <Typography
+        component="h3"
+        sx={{
+          fontFamily: "'Cormorant Garamond', serif",
+          fontWeight: 400,
+          fontSize: { xs: "2.05rem", md: "2.5rem" },
+          lineHeight: 1.05,
+        }}
+      >
+        {group.name}
+      </Typography>
+      <Typography
+        aria-hidden="true"
+        sx={{
+          color: CORAL_HOVER,
+          fontFamily: "'Cormorant Garamond', serif",
+          fontSize: "1.2rem",
+        }}
+      >
+        {group.number}
+      </Typography>
+    </Box>
+    <Box
+      component="ul"
+      sx={{
+        display: "grid",
+        gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" },
+        gap: "0.75rem 1.5rem",
+        m: 0,
+        pl: 2.5,
+        "& li::marker": { color: CORAL_HOVER },
+      }}
+    >
+      {group.restaurants.map((restaurant) => (
+        <Typography
+          component="li"
+          key={restaurant}
+          sx={{
+            fontFamily: "'Cormorant Garamond', serif",
+            fontSize: "1.08rem",
+            lineHeight: 1.4,
+          }}
+        >
+          {restaurant}
+        </Typography>
+      ))}
+    </Box>
+  </Box>
+);
+
 interface PhotoSpotProps {
   photo: (typeof travelPhotos)[number];
   number: number;
   gridColumn: { xs: string; md: string };
 }
 
-const PhotoSpot: React.FC<PhotoSpotProps> = ({
-  photo,
-  number,
-  gridColumn,
-}) => (
+const PhotoSpot: React.FC<PhotoSpotProps> = ({ photo, number, gridColumn }) => (
   <Box
     sx={{
       gridColumn,
@@ -314,7 +442,14 @@ const PhotoSpot: React.FC<PhotoSpotProps> = ({
         component="img"
         src={photo.src}
         alt={photo.alt}
-        sx={{ width: "100%", height: "100%", objectFit: "cover" }}
+        sx={{
+          position: "absolute",
+          inset: 0,
+          width: "100%",
+          height: "100%",
+          objectFit: "contain",
+          p: { xs: 2, md: 3 },
+        }}
       />
     ) : (
       <Box
@@ -334,7 +469,9 @@ const PhotoSpot: React.FC<PhotoSpotProps> = ({
             "linear-gradient(135deg, transparent 49.8%, rgba(38,49,28,0.09) 50%, transparent 50.2%), linear-gradient(45deg, transparent 49.8%, rgba(38,49,28,0.09) 50%, transparent 50.2%)",
         }}
       >
-        <CameraAltOutlinedIcon sx={{ color: CORAL_HOVER, fontSize: 36, mb: 2 }} />
+        <CameraAltOutlinedIcon
+          sx={{ color: CORAL_HOVER, fontSize: 36, mb: 2 }}
+        />
         <Typography
           sx={{
             fontFamily: "'Cormorant Garamond', serif",
@@ -448,17 +585,27 @@ const Travel: React.FC = () => {
             fontSize: "1.1rem",
             opacity: 0.78,
             mb: 4,
+            maxWidth: 760,
+            mx: "auto",
+            lineHeight: 1.6,
             textAlign: "center",
           }}
         >
-          Visit each hotel for current rates and availability.
+          We've reserved discounted room blocks for our guests at the Loews
+          Atlanta and AC/Moxy Midtown Atlanta. Please make your reservation by{" "}
+          <Box component="strong" sx={{ color: BUTTER, fontWeight: 600 }}>
+            March 16
+          </Box>{" "}
+          to receive the special rate. We can't wait to celebrate with you!
         </Typography>
         <Box
           sx={{
             display: "grid",
-            gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" },
+            gridTemplateColumns: { xs: "1fr", md: "repeat(2, 1fr)" },
             gap: 3,
             alignItems: "stretch",
+            maxWidth: 960,
+            mx: "auto",
           }}
         >
           {hotels.map((hotel) => (
@@ -516,8 +663,8 @@ const Travel: React.FC = () => {
                 opacity: 0.8,
               }}
             >
-              Eat, wander, shop, and get to know the neighborhoods around our
-              celebration.
+              Please enjoy the city we love if you have the time to try some of
+              our favorite activities.
             </Typography>
           </Box>
 
@@ -529,7 +676,7 @@ const Travel: React.FC = () => {
             }}
           >
             <ThingCard
-              item={thingsToDo[0]}
+              item={activities[0]}
               gridColumn={{ xs: "1", md: "span 7" }}
             />
             <PhotoSpot
@@ -538,11 +685,11 @@ const Travel: React.FC = () => {
               gridColumn={{ xs: "1", md: "span 5" }}
             />
             <ThingCard
-              item={thingsToDo[1]}
+              item={activities[1]}
               gridColumn={{ xs: "1", md: "span 4" }}
             />
             <ThingCard
-              item={thingsToDo[2]}
+              item={activities[2]}
               gridColumn={{ xs: "1", md: "span 4" }}
             />
             <PhotoSpot
@@ -551,11 +698,60 @@ const Travel: React.FC = () => {
               gridColumn={{ xs: "1", md: "span 4" }}
             />
             <ThingCard
-              item={thingsToDo[3]}
+              item={activities[3]}
               gridColumn={{ xs: "1", md: "span 5" }}
             />
             <ThingCard
-              item={thingsToDo[4]}
+              item={activities[4]}
+              gridColumn={{ xs: "1", md: "span 7" }}
+            />
+            <ThingCard
+              item={activities[5]}
+              gridColumn={{ xs: "1", md: "span 5" }}
+            />
+            <ThingCard
+              item={activities[6]}
+              gridColumn={{ xs: "1", md: "span 7" }}
+            />
+          </Box>
+
+          <Box sx={{ textAlign: "center", my: { xs: 7, md: 9 } }}>
+            <Typography
+              sx={{
+                color: CORAL_HOVER,
+                fontFamily: "Montserrat, sans-serif",
+                fontSize: "0.76rem",
+                fontWeight: 700,
+                letterSpacing: "0.22em",
+                textTransform: "uppercase",
+                mb: 1.5,
+              }}
+            >
+              Hungry?
+            </Typography>
+            <Typography
+              component="h3"
+              sx={{
+                fontFamily: "'Cormorant Garamond', serif",
+                fontSize: { xs: "2.6rem", md: "3.6rem" },
+                fontStyle: "italic",
+                fontWeight: 300,
+                lineHeight: 1.05,
+              }}
+            >
+              Walkable Midtown restaurants
+            </Typography>
+          </Box>
+
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", md: "repeat(12, 1fr)" },
+              gap: { xs: 2, md: 2.5 },
+            }}
+          >
+            <RestaurantCard
+              group={restaurantGroups[0]}
               gridColumn={{ xs: "1", md: "span 7" }}
             />
             <PhotoSpot
@@ -563,9 +759,21 @@ const Travel: React.FC = () => {
               number={3}
               gridColumn={{ xs: "1", md: "span 5" }}
             />
-            <ThingCard
-              item={thingsToDo[5]}
+            <RestaurantCard
+              group={restaurantGroups[1]}
+              gridColumn={{ xs: "1", md: "span 6" }}
+            />
+            <RestaurantCard
+              group={restaurantGroups[2]}
+              gridColumn={{ xs: "1", md: "span 6" }}
+            />
+            <RestaurantCard
+              group={restaurantGroups[3]}
               gridColumn={{ xs: "1", md: "span 7" }}
+            />
+            <RestaurantCard
+              group={restaurantGroups[4]}
+              gridColumn={{ xs: "1", md: "span 5" }}
             />
           </Box>
         </Box>
