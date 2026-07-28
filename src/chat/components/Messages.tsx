@@ -41,7 +41,10 @@ export function Messages({
       >
         <div
           className={cn(
-            "mx-auto flex min-w-0 flex-col gap-4 px-2 py-4 md:gap-6 md:px-4",
+            "mx-auto flex min-w-0 flex-col px-2 md:gap-6 md:px-4 md:py-4",
+            messages.length === 0
+              ? "min-h-full gap-1 py-1 md:min-h-0"
+              : "gap-4 py-4",
             variant === "page" ? "max-w-5xl" : "max-w-4xl",
           )}
         >
@@ -65,7 +68,12 @@ export function Messages({
             )}
 
           <div
-            className="min-h-[24px] min-w-[24px] shrink-0"
+            className={cn(
+              "shrink-0",
+              messages.length === 0
+                ? "min-h-1 min-w-1 md:min-h-6 md:min-w-6"
+                : "min-h-6 min-w-6",
+            )}
             ref={messagesEndRef}
           />
         </div>

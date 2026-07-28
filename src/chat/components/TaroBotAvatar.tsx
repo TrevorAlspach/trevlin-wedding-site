@@ -122,7 +122,7 @@ export function TaroBotAvatar({
       className={cn(
         "relative isolate flex shrink-0 items-center justify-center",
         variant === "page"
-          ? "h-[clamp(11rem,25vh,16rem)] items-end overflow-hidden"
+          ? "h-[clamp(8rem,19dvh,10rem)] items-end overflow-hidden md:h-[clamp(11rem,25vh,16rem)]"
           : "h-32 overflow-hidden border-b border-border",
       )}
       style={{
@@ -142,7 +142,7 @@ export function TaroBotAvatar({
         className={cn(
           "relative aspect-square",
           variant === "page"
-            ? "w-[clamp(11rem,25vh,16rem)]"
+            ? "w-[clamp(8rem,19dvh,10rem)] md:w-[clamp(11rem,25vh,16rem)]"
             : "w-[7.25rem]",
         )}
         role="img"

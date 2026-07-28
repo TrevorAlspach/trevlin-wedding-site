@@ -21,7 +21,7 @@ function PureSuggestedActions({
 
   return (
     <div
-      className="grid w-full gap-2 sm:grid-cols-2"
+      className="grid w-full gap-1 sm:grid-cols-2 sm:gap-2"
       data-testid="suggested-actions"
     >
       {suggestedActions.map((suggestedAction, index) => (
@@ -34,7 +34,7 @@ function PureSuggestedActions({
         >
           <Suggestion
             className={cn(
-              "h-auto w-full whitespace-normal p-3 text-left text-lg leading-snug",
+              "h-auto w-full whitespace-normal p-2 text-left text-sm leading-tight sm:p-3 sm:text-lg sm:leading-snug",
               variant === "page" &&
                 "border-[#5c6e3a] bg-[#5c6e3a] text-[#f7f4df] hover:bg-[#4f6032] hover:text-[#fffdf0]",
             )}

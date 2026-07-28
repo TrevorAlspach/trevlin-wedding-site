@@ -15,6 +15,12 @@ function App() {
     <Box
       sx={{
         minHeight: "100vh",
+        ...(isChatPage && {
+          display: "flex",
+          flexDirection: "column",
+          height: "100dvh",
+          overflow: "hidden",
+        }),
         backgroundColor: OLIVE,
         color: IVORY,
       }}
@@ -26,7 +32,12 @@ function App() {
           display: "flex",
           justifyContent: isChatPage || isHomePage ? "stretch" : "center",
           alignItems: isChatPage ? "stretch" : "flex-start",
-          minHeight: isHomePage ? "auto" : "calc(100vh - 80px)",
+          minHeight:
+            isHomePage || isChatPage ? "auto" : "calc(100vh - 80px)",
+          ...(isChatPage && {
+            flex: 1,
+            minHeight: 0,
+          }),
           color: IVORY,
           textAlign: isChatPage || isHomePage ? "left" : "center",
           width: "100%",

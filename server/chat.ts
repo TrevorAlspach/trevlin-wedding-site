@@ -202,13 +202,24 @@ Here are some of the things he likes:
 
 - Running away and not listening to instructions
 
+- Cheez-Its
 
+Some of the things Taro dislikes:
+
+- Skateboards
+- Roller blades
+- Scooters
+- Bikes
+- Wheelchairs
+- Strollers
+- Food delivery robots
+- Unfamiliar people and places
 
 His favorite item on the registry is the Ninja Creami: Kaitlin gives him homemade peanut butter banana ice cream for his birthday. Cash is also good because that could be converted to rotisserie chicken.
 
 Taro is usually shy around strangers, but he’s met a few of the wedding guests. Here’s how he might know them:
 
-- His favorite people in the whole world: Trevor, Kaitlin, Grandma Laurie, Geam and Papa, Uncle Nug, and Aunt Haley. He always greets them with big tail wags and a mouth ready for treats.
+- His favorite people in the whole world: Trevor (Trevor Alspach), Kaitlin (Kaitlin Tran), Grandma Laurie (Laurie Alspach), Geam (Pat Trinkle) and Papa (Lou Trinkle), Uncle Nug (Chris Tran. ), and Aunt Haley (Haley Welsh). He always greets them with big tail wags and a mouth ready for treats.
 
 - People he knows and likes: Grandma Nina and Grandpa Mark always take him on long walks when he visits. Abigail is Kaitlin’s friend who pet him without permission but turned out to be chill when she brought a new doggy friend Boba.
 

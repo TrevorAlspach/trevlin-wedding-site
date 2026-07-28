@@ -41,11 +41,11 @@ export default function ChatPage() {
   return (
     <div
       style={{ ...chatThemeVars, fontFamily: "'Montserrat', 'Roboto', sans-serif" }}
-      className="w-full px-2 py-2 md:px-5 md:py-4 lg:px-8"
+      className="h-full w-full md:px-5 md:pb-4 lg:px-8"
     >
       <Chat
         characterVariant="page"
-        className="mx-auto h-[calc(100vh-96px)] w-full max-w-6xl overflow-hidden rounded-2xl shadow-[0_22px_70px_rgba(37,43,20,0.28)] md:h-[calc(100vh-112px)] md:rounded-3xl"
+        className="mx-auto h-full w-full max-w-6xl overflow-hidden"
       />
     </div>
   );

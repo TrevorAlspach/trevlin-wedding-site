@@ -47,7 +47,7 @@ export function Chat({ className, characterVariant = "widget" }: ChatProps) {
         />
         <div
           className={cn(
-            "mx-auto w-full px-2 pb-4 md:px-4",
+            "mx-auto w-full px-2 pb-2 sm:pb-4 md:px-4",
             characterVariant === "page" ? "max-w-5xl" : "max-w-4xl",
           )}
         >
