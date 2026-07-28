@@ -1,6 +1,10 @@
 export type WeddingFaqItem = {
   question: string;
   answer: string;
+  link?: {
+    label: string;
+    to: string;
+  };
 };
 
 export const weddingFaqs: readonly WeddingFaqItem[] = [
@@ -23,6 +27,10 @@ export const weddingFaqs: readonly WeddingFaqItem[] = [
     question: "Where can I stay?",
     answer:
       "We've reserved a room block at a discounted rate for our guests at the Loews Atlanta and AC Moxy Midtown Atlanta. Please make your reservation by March 16 to receive the special rate. We can't wait to celebrate with you!",
+    link: {
+      label: "hotels & things to do",
+      to: "/travel",
+    },
   },
   {
     question: "What should I wear?",

@@ -4,13 +4,16 @@ import {
   AccordionSummary,
   AccordionDetails,
   Box,
+  Button,
   Typography,
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import { Link } from "react-router-dom";
 import { weddingFaqs, type WeddingFaqItem } from "../../shared/wedding-info";
 
 const IVORY = "#f5efe0";
 const CORAL = "#ff9d6c";
+const CORAL_HOVER = "#ffb08a";
 const BUTTER = "#f7d076";
 
 const half = Math.ceil(weddingFaqs.length / 2);
@@ -53,17 +56,42 @@ const FaqColumn: React.FC<{ items: readonly WeddingFaqItem[] }> = ({ items }) =>
           </Typography>
         </AccordionSummary>
         <AccordionDetails>
-          <Typography
-            sx={{
-              color: IVORY,
-              fontFamily: "'Cormorant Garamond', serif",
-              fontSize: "1.1rem",
-              opacity: 0.9,
-              lineHeight: 1.6,
-            }}
-          >
-            {faq.answer}
-          </Typography>
+          <Box>
+            <Typography
+              sx={{
+                color: IVORY,
+                fontFamily: "'Cormorant Garamond', serif",
+                fontSize: "1.1rem",
+                opacity: 0.9,
+                lineHeight: 1.6,
+              }}
+            >
+              {faq.answer}
+            </Typography>
+            {faq.link && (
+              <Button
+                component={Link}
+                to={faq.link.to}
+                sx={{
+                  mt: 2.5,
+                  color: "#3a3a1a",
+                  backgroundColor: CORAL,
+                  fontFamily: "'Cormorant Garamond', serif",
+                  fontSize: "1rem",
+                  fontWeight: 700,
+                  letterSpacing: "0.08em",
+                  textTransform: "none",
+                  px: 3,
+                  py: 1.15,
+                  borderRadius: 0,
+                  boxShadow: "none",
+                  "&:hover": { backgroundColor: CORAL_HOVER },
+                }}
+              >
+                {faq.link.label}
+              </Button>
+            )}
+          </Box>
         </AccordionDetails>
       </Accordion>
     ))}
