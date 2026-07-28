@@ -38,6 +38,9 @@ const Nav: React.FC = () => {
       <Button component={Link} to="/" sx={linkSx}>
         Home
       </Button>
+      <Button component={Link} to="/travel" sx={linkSx}>
+        Travel
+      </Button>
       <Button component={Link} to="/registry" sx={linkSx}>
         Registry
       </Button>

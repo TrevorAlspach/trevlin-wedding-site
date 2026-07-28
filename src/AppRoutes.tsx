@@ -4,6 +4,7 @@ import Registry from "./pages/Registry";
 import Home from "./pages/Home";
 import FAQ from "./pages/Faq";
 import Rsvp from "./pages/Rsvp";
+import Travel from "./pages/Travel";
 
 const ChatPage = lazy(() => import("./pages/ChatPage"));
 
@@ -12,6 +13,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/registry" element={<Registry />} />
+      <Route path="/travel" element={<Travel />} />
       <Route path="/rsvp" element={<Rsvp />} />
       <Route path="/faq" element={<FAQ />} />
       <Route
