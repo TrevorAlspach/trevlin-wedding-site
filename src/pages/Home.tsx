@@ -292,7 +292,7 @@ const Home: React.FC = () => {
       </Box>
 
       {/* Our Story section */}
-      <Box sx={{ backgroundColor: "rgba(50, 60, 30, 0.35)" }}>
+      {/* <Box sx={{ backgroundColor: "rgba(50, 60, 30, 0.35)" }}>
         <Container
           maxWidth="md"
           sx={{ py: { xs: 8, md: 12 }, textAlign: "center" }}
@@ -335,7 +335,7 @@ const Home: React.FC = () => {
             each other. This is a placeholder you can fill in later.
           </Typography>
         </Container>
-      </Box>
+      </Box> */}
 
       {/* Footer CTA */}
       {/* <Container
