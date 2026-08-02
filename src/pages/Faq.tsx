@@ -67,6 +67,28 @@ const FaqColumn: React.FC<{ items: readonly WeddingFaqItem[] }> = ({ items }) =>
               }}
             >
               {faq.answer}
+              {faq.answerLink && (
+                <>
+                  {" "}
+                  <Box
+                    component="a"
+                    href={faq.answerLink.to}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    sx={{
+                      color: CORAL_HOVER,
+                      fontWeight: 700,
+                      textDecorationColor: CORAL,
+                      textDecorationThickness: "2px",
+                      textUnderlineOffset: "3px",
+                      "&:hover": { color: BUTTER },
+                    }}
+                  >
+                    {faq.answerLink.label}
+                  </Box>
+                  .
+                </>
+              )}
             </Typography>
             {faq.link && (
               <Button

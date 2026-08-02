@@ -5,6 +5,10 @@ export type WeddingFaqItem = {
     label: string;
     to: string;
   };
+  answerLink?: {
+    label: string;
+    to: string;
+  };
 };
 
 export const weddingFaqs: readonly WeddingFaqItem[] = [
@@ -75,12 +79,12 @@ export const weddingFaqs: readonly WeddingFaqItem[] = [
   {
     question: "Need to fly in?",
     answer:
-      "Hartsfield-Jackson Airport (ATL) is the main airport hub in Atlanta, and 15 minutes away from the Inman Park area. Delta can definitely get you there!",
+      "Hartsfield-Jackson Airport (ATL) is the main airport hub in Atlanta, and 15 minutes away from Midtown. Delta can definitely get you there!",
   },
   {
     question: "Directions to venue?",
     answer:
-      "The Trolley Barn is located at 963 Edgewood Ave NE, Atlanta, GA 30307.",
+      "The Trolley Barn is located at 963 Edgewood Ave NE, Atlanta, GA 30307. The closest MARTA station is Inman Park/Reynoldstown, about a 5-minute walk from the venue.",
   },
   {
     question: "How to change RSVP?",
@@ -90,7 +94,11 @@ export const weddingFaqs: readonly WeddingFaqItem[] = [
   {
     question: "Am I allowed to take pictures?",
     answer:
-      "We request that phones be turned off for all guests to enjoy the ceremony without distractions. However, pictures are highly encouraged during the reception! Please send your favorites to us after the big day: (link to album or email).",
+      "We request that phones be turned off for all guests to enjoy the ceremony without distractions. However, pictures are highly encouraged during the reception! Please send your favorites to us after the big day:",
+    answerLink: {
+      label: "Upload your photos here",
+      to: "https://drive.google.com/drive/folders/1bfFSVIIJ1VEZ7SdRylu1cen3gFzyuhW9",
+    },
   },
   {
     question: "Where to see updates?",
@@ -104,5 +112,10 @@ export const weddingFaqs: readonly WeddingFaqItem[] = [
   {
     question: "How do you pronounce 'Alspach'?",
     answer: "'All-spa'. It's German!",
+  },
+  {
+    question: "What is TaroBot?",
+    answer:
+      "If you don’t feel like scrolling through the FAQ or just want to have some fun, TaroBot is an AI agent that’s been trained to answer these questions and more with the personality of our real life dog, Taro!",
   },
 ];

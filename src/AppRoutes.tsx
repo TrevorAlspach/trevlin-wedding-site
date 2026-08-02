@@ -5,6 +5,7 @@ import Home from "./pages/Home";
 import FAQ from "./pages/Faq";
 import Rsvp from "./pages/Rsvp";
 import Travel from "./pages/Travel";
+import ThingsToDo from "./pages/ThingsToDo";
 
 const ChatPage = lazy(() => import("./pages/ChatPage"));
 
@@ -14,6 +15,7 @@ function AppRoutes() {
       <Route path="/" element={<Home />} />
       <Route path="/registry" element={<Registry />} />
       <Route path="/travel" element={<Travel />} />
+      <Route path="/things-to-do" element={<ThingsToDo />} />
       <Route path="/rsvp" element={<Rsvp />} />
       <Route path="/faq" element={<FAQ />} />
       <Route

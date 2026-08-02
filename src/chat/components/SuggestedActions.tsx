@@ -15,7 +15,7 @@ function PureSuggestedActions({
   const suggestedActions = [
     "What's the dress code?",
     "Where is the venue?",
-    "What time does the ceremony start?",
+    "Tell me more about Trevor and Kaitlin",
     "Is there parking?",
   ];
 
