@@ -50,16 +50,18 @@ export function Messages({
         >
           {messages.length === 0 && <Greeting variant={variant} />}
 
-          {messages.map((message, index) => (
-            <PreviewMessage
-              isLoading={
-                status === "streaming" && messages.length - 1 === index
-              }
-              key={message.id}
-              message={message}
-              variant={variant}
-            />
-          ))}
+          {messages.map((message, index) =>
+            message.role === "assistant" && !message.content ? null : (
+              <PreviewMessage
+                isLoading={
+                  status === "streaming" && messages.length - 1 === index
+                }
+                key={message.id}
+                message={message}
+                variant={variant}
+              />
+            ),
+          )}
 
           {status === "streaming" &&
             messages.length > 0 &&
