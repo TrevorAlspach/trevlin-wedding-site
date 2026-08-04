@@ -59,7 +59,7 @@ export const weddingFaqs: readonly WeddingFaqItem[] = [
   {
     question: "Can I request songs to the DJ?",
     answer:
-      "Any song requests will be accepted before the day of. Feel free to submit as many as you want in the online form!",
+      "Any song requests will be accepted before the day of. Feel free to submit as many as you want in the online form on this site when it becomes available.",
   },
   {
     question: "What kind of food will be served?",

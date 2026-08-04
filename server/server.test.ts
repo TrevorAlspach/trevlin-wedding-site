@@ -37,6 +37,10 @@ import {
   type AccessRequest,
 } from "./access-request.js";
 import { weddingFaqs } from "../shared/wedding-info.js";
+import {
+  atlantaActivities,
+  atlantaRestaurantGroups,
+} from "../shared/things-to-do.js";
 
 let distDir: string;
 
@@ -235,6 +239,17 @@ test("builds the server-controlled prompt with authenticated guest context", () 
   for (const faq of weddingFaqs) {
     assert.match(prompt, new RegExp(faq.question.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
     assert.match(prompt, new RegExp(faq.answer.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  }
+  for (const activity of atlantaActivities) {
+    assert.match(prompt, new RegExp(activity.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    assert.match(prompt, new RegExp(activity.description.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    assert.match(prompt, new RegExp(activity.url.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  }
+  for (const group of atlantaRestaurantGroups) {
+    assert.match(prompt, new RegExp(group.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    for (const restaurant of group.restaurants) {
+      assert.match(prompt, new RegExp(restaurant.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    }
   }
   assert.match(prompt, /Answer from the wedding facts when applicable/);
   assert.match(prompt, /do not have that information/i);

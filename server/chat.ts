@@ -7,6 +7,10 @@ import {
 import { ChatOpenAI } from "@langchain/openai";
 import type { Request, Response } from "express";
 import { weddingFaqs } from "../shared/wedding-info.js";
+import {
+  atlantaActivities,
+  atlantaRestaurantGroups,
+} from "../shared/things-to-do.js";
 
 export const MAX_CHAT_HISTORY = 50;
 export const MAX_CHAT_MESSAGE_LENGTH = 5_000;
@@ -141,6 +145,18 @@ export function createSystemPrompt(guestName?: string | null): string {
       ({ question, answer }, index) => `${index + 1}. ${question}\n${answer}`,
     )
     .join("\n\n");
+  const activities = atlantaActivities
+    .map(
+      ({ name, category, description, url }, index) =>
+        `${index + 1}. ${name} (${category})\n${description}\nMore information: ${url}`,
+    )
+    .join("\n\n");
+  const restaurants = atlantaRestaurantGroups
+    .map(
+      ({ name, restaurants: recommendations }) =>
+        `- ${name}: ${recommendations.join(", ")}`,
+    )
+    .join("\n");
 
   return `## Role
 
@@ -318,7 +334,17 @@ Plannin coolest wedding ever, n learning more ab coding n art to put more of our
 ${authenticatedGuestPrompt(guestName)}
 
 Wedding facts:
-${facts}`;
+${facts}
+
+## Things to Do in Atlanta
+
+Recommended activities:
+${activities}
+
+Walkable Midtown restaurants:
+${restaurants}
+
+`;
 }
 
 export function extractTaroBotAppearance(

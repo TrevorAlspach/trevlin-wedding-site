@@ -17,6 +17,7 @@ function PureSuggestedActions({
     "Where is the venue?",
     "Tell me more about Trevor and Kaitlin",
     "Is there parking?",
+    "What are some things to do in Atlanta?",
   ];
 
   return (

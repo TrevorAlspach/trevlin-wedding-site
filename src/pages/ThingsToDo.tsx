@@ -4,110 +4,16 @@ import MapOutlinedIcon from "@mui/icons-material/MapOutlined";
 import travelOne from "../assets/travel-1.png";
 import travelTwo from "../assets/travel-2.png";
 import travelThree from "../assets/travel-3.png";
+import {
+  atlantaActivities,
+  atlantaRestaurantGroups,
+} from "../../shared/things-to-do";
 
 const IVORY = "#f5efe0";
 const CORAL = "#ff9d6c";
 const CORAL_HOVER = "#f08152";
 const INK = "#26311c";
 const BEIGE = "#e9edc6";
-
-const activities = [
-  {
-    name: "Georgia Aquarium",
-    category: "3–4 hours",
-    description:
-      "Purchase a ticket online to reserve a time slot in advance. Go during the week if you can to avoid the crowds!",
-    url: "https://www.georgiaaquarium.org/",
-  },
-  {
-    name: "Atlanta Botanical Garden",
-    category: "3–4 hours",
-    description:
-      "Purchase a ticket online to reserve a time slot in advance. Tulips and daffodils will be in season!",
-    url: "https://atlantabg.org/",
-  },
-  {
-    name: "World of Coca-Cola",
-    category: "2 hours",
-    description:
-      "Purchase a ticket online to reserve a time slot in advance. Try the red cream soda!",
-    url: "https://www.worldofcoca-cola.com/",
-  },
-  {
-    name: "Buford Highway",
-    category: "1 hour",
-    description:
-      "Drive 15 minutes out of the city to try the best Hispanic and Asian restaurants in the South. Our favorites are Pho Bac, Canton House, and Kamayan.",
-    url: "https://discoveratlanta.com/dining/buford-highway/",
-  },
-  {
-    name: "Beltline",
-    category: "1–5 hours · depends on you!",
-    description:
-      "Find an entrance around Piedmont Park, Ponce City Market, or Inman Park and enjoy a stroll through the city. Inman Park's Victory Sandwich Bar has a great Jack and Coke slushie!",
-    url: "https://beltline.org/visitor-information/",
-  },
-  {
-    name: "Atlantic Station",
-    category: "Shopping",
-    description:
-      "Show up and enjoy free parking for two hours for any last-minute shopping if you don't want to deal with the mall.",
-    url: "https://atlanticstation.com/",
-  },
-  {
-    name: "Farmer's Market",
-    category: "Saturday · 9 AM–1 PM",
-    description:
-      "Find it at Piedmont Park on Saturdays only. We always stop by the coffee stand!",
-    url: "https://piedmontpark.org/green-market/",
-  },
-] as const;
-
-const restaurantGroups = [
-  {
-    name: "Bang for your buck",
-    restaurants: [
-      "Steamhouse Lounge",
-      "Urban Hai",
-      "bb.q Chicken (Korean fried chicken)",
-      "Nagomiya (the ramen/sushi combos)",
-      "DUA (poke bowls)",
-      "Xi'an Gourmet House",
-      "Establishment (happy hour)",
-      "Silver Skillet",
-    ],
-  },
-  {
-    name: "Delicious with city prices",
-    restaurants: [
-      "Tabla",
-      "E Ramen",
-      "Agora",
-      "Boqueria",
-      "Pasta da Pulcinella",
-      "26 Thai",
-      "Rreal Tacos",
-      "Crescent City Kitchen",
-    ],
-  },
-  {
-    name: "I want a sweet treat",
-    restaurants: [
-      "Cafe Intermezzo",
-      "Moge Tee",
-      "White Windmill",
-      "Coffee: Cafe Lucia, Dancing Goats, For Five, Haraz",
-    ],
-  },
-  {
-    name: "Familiar faces",
-    restaurants: ["Chipotle", "Shake Shack", "5 Guys", "Chick-fil-A", "Panera"],
-  },
-  {
-    name: "Higher end",
-    restaurants: ["The Consulate", "Rumi's Kitchen"],
-  },
-] as const;
 
 const travelPhotos = [
   { src: travelOne, alt: "" },
@@ -116,7 +22,7 @@ const travelPhotos = [
 ] as const;
 
 interface ThingCardProps {
-  item: (typeof activities)[number];
+  item: (typeof atlantaActivities)[number];
   gridColumn: { xs: string; md: string };
 }
 
@@ -199,7 +105,7 @@ const ThingCard: React.FC<ThingCardProps> = ({ item, gridColumn }) => (
 );
 
 interface RestaurantCardProps {
-  group: (typeof restaurantGroups)[number];
+  group: (typeof atlantaRestaurantGroups)[number];
   gridColumn: { xs: string; md: string };
 }
 
@@ -357,7 +263,7 @@ const ThingsToDo: React.FC = () => (
           }}
         >
           <ThingCard
-            item={activities[0]}
+            item={atlantaActivities[0]}
             gridColumn={{ xs: "1", md: "span 7" }}
           />
           <PhotoSpot
@@ -365,11 +271,11 @@ const ThingsToDo: React.FC = () => (
             gridColumn={{ xs: "1", md: "span 5" }}
           />
           <ThingCard
-            item={activities[1]}
+            item={atlantaActivities[1]}
             gridColumn={{ xs: "1", md: "span 4" }}
           />
           <ThingCard
-            item={activities[2]}
+            item={atlantaActivities[2]}
             gridColumn={{ xs: "1", md: "span 4" }}
           />
           <PhotoSpot
@@ -377,19 +283,19 @@ const ThingsToDo: React.FC = () => (
             gridColumn={{ xs: "1", md: "span 4" }}
           />
           <ThingCard
-            item={activities[3]}
+            item={atlantaActivities[3]}
             gridColumn={{ xs: "1", md: "span 5" }}
           />
           <ThingCard
-            item={activities[4]}
+            item={atlantaActivities[4]}
             gridColumn={{ xs: "1", md: "span 7" }}
           />
           <ThingCard
-            item={activities[5]}
+            item={atlantaActivities[5]}
             gridColumn={{ xs: "1", md: "span 5" }}
           />
           <ThingCard
-            item={activities[6]}
+            item={atlantaActivities[6]}
             gridColumn={{ xs: "1", md: "span 7" }}
           />
         </Box>
@@ -430,7 +336,7 @@ const ThingsToDo: React.FC = () => (
           }}
         >
           <RestaurantCard
-            group={restaurantGroups[0]}
+            group={atlantaRestaurantGroups[0]}
             gridColumn={{ xs: "1", md: "span 7" }}
           />
           <PhotoSpot
@@ -438,19 +344,19 @@ const ThingsToDo: React.FC = () => (
             gridColumn={{ xs: "1", md: "span 5" }}
           />
           <RestaurantCard
-            group={restaurantGroups[1]}
+            group={atlantaRestaurantGroups[1]}
             gridColumn={{ xs: "1", md: "span 6" }}
           />
           <RestaurantCard
-            group={restaurantGroups[2]}
+            group={atlantaRestaurantGroups[2]}
             gridColumn={{ xs: "1", md: "span 6" }}
           />
           <RestaurantCard
-            group={restaurantGroups[3]}
+            group={atlantaRestaurantGroups[3]}
             gridColumn={{ xs: "1", md: "span 7" }}
           />
           <RestaurantCard
-            group={restaurantGroups[4]}
+            group={atlantaRestaurantGroups[4]}
             gridColumn={{ xs: "1", md: "span 5" }}
           />
         </Box>
