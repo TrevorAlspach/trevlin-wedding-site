@@ -1,4 +1,7 @@
-import express, { type ErrorRequestHandler, type RequestHandler } from "express";
+import express, {
+  type ErrorRequestHandler,
+  type RequestHandler,
+} from "express";
 import helmet from "helmet";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -138,7 +141,8 @@ function deniedPage({
   return page(
     "Access denied",
     `<h1>Access denied</h1>
-     <p>This account is not on the guest list. You can request access or try another account.</p>
+     <p>Thank you for visiting our website, we’re excited to share our day with you! 
+     To protect our private event information our website is only accessible with an email signin. Please request access for your email and we’ll make sure to get you on the list!</p>
      ${requestForm}
      <div class="actions"><a href="/.auth/logout?post_logout_redirect_uri=%2Flogin">Try another account</a></div>`,
   );
@@ -174,7 +178,12 @@ function isApiRequest(pathname: string): boolean {
   return pathname === "/api" || pathname.startsWith("/api/");
 }
 
-const apiBodyErrorHandler: ErrorRequestHandler = (error, request, response, next) => {
+const apiBodyErrorHandler: ErrorRequestHandler = (
+  error,
+  request,
+  response,
+  next,
+) => {
   if (!isApiRequest(request.path)) {
     next(error);
     return;
@@ -244,13 +253,18 @@ export function createApp({
   const sendAccessRequest =
     accessRequestSender === undefined
       ? createFormspreeAccessRequestSender()
-      : accessRequestSender ?? undefined;
-  const accessRequestRateLimiter = createAccessRequestRateLimiter(accessRequestRateLimit);
+      : (accessRequestSender ?? undefined);
+  const accessRequestRateLimiter = createAccessRequestRateLimiter(
+    accessRequestRateLimit,
+  );
 
   app.disable("x-powered-by");
   app.use(securityMiddleware());
   app.use((_request, response, next) => {
-    response.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive, nosnippet");
+    response.setHeader(
+      "X-Robots-Tag",
+      "noindex, nofollow, noarchive, nosnippet",
+    );
     next();
   });
 
@@ -346,7 +360,9 @@ export function createApp({
     if (!rawPrincipal) {
       if (apiRequest) {
         response.setHeader("Cache-Control", "no-store");
-        return response.status(401).json({ error: "Your session has expired. Please sign in again." });
+        return response
+          .status(401)
+          .json({ error: "Your session has expired. Please sign in again." });
       }
       return response.redirect(302, "/login");
     }
@@ -355,7 +371,9 @@ export function createApp({
     if (!principal) {
       response.setHeader("Cache-Control", "no-store");
       if (apiRequest) {
-        return response.status(401).json({ error: "Your session has expired. Please sign in again." });
+        return response
+          .status(401)
+          .json({ error: "Your session has expired. Please sign in again." });
       }
       return response
         .status(401)
@@ -369,19 +387,29 @@ export function createApp({
         const claimTypes = principal.claims
           .map((claim) => (typeof claim?.typ === "string" ? claim.typ : null))
           .filter(Boolean);
-        console.warn("Authenticated principal did not include a supported email claim", {
-          provider: principal.auth_typ,
-          claimTypes,
-        });
+        console.warn(
+          "Authenticated principal did not include a supported email claim",
+          {
+            provider: principal.auth_typ,
+            claimTypes,
+          },
+        );
       }
       response.setHeader("Cache-Control", "no-store");
       if (apiRequest) {
-        return response.status(403).json({ error: "This account does not have access." });
+        return response
+          .status(403)
+          .json({ error: "This account does not have access." });
       }
       return response
         .status(403)
         .type("html")
-        .send(deniedPage({ email, accessRequestsEnabled: Boolean(sendAccessRequest) }));
+        .send(
+          deniedPage({
+            email,
+            accessRequestsEnabled: Boolean(sendAccessRequest),
+          }),
+        );
     }
 
     response.locals.authenticatedEmail = email;
@@ -398,7 +426,9 @@ export function createApp({
       const rateLimit = checkChatRateLimit(email);
       if (!rateLimit.allowed) {
         response.setHeader("Retry-After", String(rateLimit.retryAfterSeconds));
-        response.status(429).json({ error: "Too many chat requests. Please try again shortly." });
+        response
+          .status(429)
+          .json({ error: "Too many chat requests. Please try again shortly." });
         return;
       }
       next();
