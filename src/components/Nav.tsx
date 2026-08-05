@@ -42,7 +42,7 @@ const Nav: React.FC = () => {
         Travel
       </Button>
       <Button component={Link} to="/things-to-do" sx={linkSx}>
-        Things to do
+        Things To Do
       </Button>
       <Button component={Link} to="/registry" sx={linkSx}>
         Registry
