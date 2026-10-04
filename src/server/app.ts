@@ -27,6 +27,8 @@ import {
 
 import type { ProviderName, SessionResponse } from "../shared/auth.js";
 import type { AccessRequestResponse } from "../shared/access-request.js";
+import type { Repository } from "typeorm";
+import type { Guest } from "./db/guest.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_DIST_DIR = path.resolve(__dirname, "../../dist");
@@ -81,6 +83,7 @@ export type CreateAppOptions = {
   allowedEmails?: Set<string>;
   providers?: ProviderName[];
   distDir?: string;
+  guestRepository?: Pick<Repository<Guest>, "find">;
   chatModel?: StreamingChatModel;
   chatRateLimit?: {
     maxRequests?: number;
@@ -98,6 +101,7 @@ export function createApp({
   allowedEmails = parseAllowedEmails(process.env.ALLOWED_EMAILS),
   providers = parseProviders(process.env.AUTH_PROVIDERS),
   distDir = DEFAULT_DIST_DIR,
+  guestRepository,
   chatModel,
   chatRateLimit,
   accessRequestSender,
@@ -282,6 +286,16 @@ export function createApp({
       email: response.locals.authenticatedEmail,
       name: response.locals.authenticatedName,
     });
+  });
+
+  app.get("/api/guests", async (_request, response) => {
+    if (!guestRepository) {
+      response.status(503).json({ error: "Guest information is currently unavailable." });
+      return;
+    }
+
+    const guests = await guestRepository.find({ order: { id: "ASC" } });
+    response.json(guests);
   });
 
   app.post(

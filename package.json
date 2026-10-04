@@ -10,7 +10,11 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "start": "node --env-file-if-exists=.env server-dist/server/index.js",
-    "test:server": "npm run build:server && node --test server-dist/server/*.test.js"
+    "test:server": "npm run build:server && node --test server-dist/server/*.test.js",
+    "db:migrate": "node --env-file-if-exists=.env node_modules/typeorm/cli.js migration:run -d server-dist/server/db/data-source.js",
+    "db:migrations:show": "node --env-file-if-exists=.env node_modules/typeorm/cli.js migration:show -d server-dist/server/db/data-source.js",
+    "db:migrate:revert": "node --env-file-if-exists=.env node_modules/typeorm/cli.js migration:revert -d server-dist/server/db/data-source.js",
+    "db:migration:generate": "node --env-file-if-exists=.env node_modules/typeorm/cli.js migration:generate -d server-dist/server/db/data-source.js"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -26,12 +30,15 @@
     "framer-motion": "^12.35.0",
     "helmet": "^8.1.0",
     "lucide-react": "^0.577.0",
+    "mssql": "^12.7.2",
     "radix-ui": "^1.4.3",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-router-dom": "^7.8.1",
+    "reflect-metadata": "^0.2.2",
     "streamdown": "^2.3.0",
     "tailwind-merge": "^3.5.0",
+    "typeorm": "^1.1.1",
     "usehooks-ts": "^3.1.1"
   },
   "devDependencies": {

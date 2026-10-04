@@ -1,9 +1,12 @@
 import path from "node:path";
+import { once } from "node:events";
 import { pathToFileURL } from "node:url";
 import { createApp } from "./app.js";
 import { parseAllowedEmails, parseProviders } from "./auth.js";
+import database from "./db/data-source.js";
+import { guestRepository } from "./db/guest-repository.js";
 
-export function startServer() {
+export async function startServer() {
   const allowedEmails = parseAllowedEmails(process.env.ALLOWED_EMAILS);
   const providers = parseProviders(process.env.AUTH_PROVIDERS);
   const port = Number.parseInt(process.env.PORT || "80", 10);
@@ -16,11 +19,52 @@ export function startServer() {
     console.warn("ALLOWED_EMAILS is empty; all authenticated users will be denied");
   }
 
-  return createApp({ allowedEmails, providers }).listen(port, "0.0.0.0", () => {
-    console.log(`Wedding site authorization server listening on port ${port}`);
-    console.log(`Loaded ${allowedEmails.size} allowed guest email address(es)`);
+  await database.initialize();
+  console.log("Azure SQL connection established");
+
+  const server = createApp({ allowedEmails, providers, guestRepository }).listen(port, "0.0.0.0");
+  try {
+    await once(server, "listening");
+  } catch (error) {
+    await database.destroy();
+    throw error;
+  }
+  console.log(`Wedding site authorization server listening on port ${port}`);
+  console.log(`Loaded ${allowedEmails.size} allowed guest email address(es)`);
+
+  let shuttingDown = false;
+  let shutdownTimeout: ReturnType<typeof setTimeout> | undefined;
+  const shutdown = () => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    shutdownTimeout = setTimeout(() => process.exit(1), 25_000);
+    shutdownTimeout.unref();
+    server.close((error) => {
+      if (error) {
+        console.error("HTTP shutdown failed", error);
+        process.exitCode = 1;
+      }
+    });
+  };
+  process.once("SIGTERM", shutdown);
+  process.once("SIGINT", shutdown);
+  server.once("close", () => {
+    process.removeListener("SIGTERM", shutdown);
+    process.removeListener("SIGINT", shutdown);
+    void database.destroy()
+      .catch((error: unknown) => {
+        console.error("Database shutdown failed", error);
+        process.exitCode = 1;
+      })
+      .finally(() => clearTimeout(shutdownTimeout));
   });
+  return server;
 }
 
 const entryPoint = process.argv[1] ? pathToFileURL(path.resolve(process.argv[1])).href : "";
-if (entryPoint === import.meta.url) startServer();
+if (entryPoint === import.meta.url) {
+  startServer().catch((error: unknown) => {
+    console.error("Server startup failed", error);
+    process.exitCode = 1;
+  });
+}
