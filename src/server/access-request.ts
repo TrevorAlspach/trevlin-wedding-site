@@ -1,4 +1,4 @@
-export const MAX_ACCESS_REQUEST_MESSAGE_LENGTH = 500;
+import { MAX_ACCESS_REQUEST_MESSAGE_LENGTH } from "../shared/access-request.js";
 export const DEFAULT_ACCESS_REQUEST_RATE_WINDOW_MS = 12 * 60 * 60 * 1_000;
 
 export type AccessRequest = {

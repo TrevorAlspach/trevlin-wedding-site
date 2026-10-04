@@ -2,7 +2,8 @@
 
 The production container uses Azure Container Apps Easy Auth for authentication and
 checks each authenticated email address against `ALLOWED_EMAILS` before serving the
-Vite application or any static asset.
+wedding application or its static assets. The separate sign-in client and its
+assets are public so guests can sign in and request access.
 
 See [azure-auth-setup.md](azure-auth-setup.md) for the Azure and OAuth provider setup.
 
@@ -31,6 +32,14 @@ from Azure Easy Auth, includes the token's display name when available, relays t
 one successful request every 12 hours. Leave the variable empty to hide the
 request form and keep the original contact-the-couple message.
 
+Sign-in, access-denied, and access-request result pages are rendered by
+`src/client/auth`. They read provider and session information from
+`GET /api/session` and submit `{ "message": "..." }` to
+`POST /api/request-access`. Responses use HTTP status codes and JSON, including
+validation errors, delivery failures, and rate limits. The original
+`POST /request-access` URL also accepts this JSON contract. Chat continues to
+stream JSON events over SSE.
+
 For a non-container local build, copy `.env.example` to `.env`, add your local
 `OPENAI_API_KEY`, and keep that file untracked. `npm start` loads it when present.
 The browser always calls the same-origin `/api/chat` endpoint; no API key or
@@ -43,7 +52,10 @@ The browser always calls the same-origin `/api/chat` endpoint; no API key or
 - `src/shared`: Data, types, and utilities used by both client and server.
 
 The client `@/` alias resolves to `src/client`. Production builds emit the client
-to `dist` and the server and its shared modules to `server-dist`.
+to `dist` and the server and its shared modules to `server-dist`. The sign-in
+client is built separately into `dist/auth`, served under `/auth`, so it does not
+include private wedding code or data. Run `npm run build` before `npm start` to
+build both clients and the server.
 
 ## Commands
 

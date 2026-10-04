@@ -1,3 +1,5 @@
+import { PROVIDERS, type ProviderName } from "../shared/auth.js";
+
 const EMAIL_CLAIM_TYPES = new Set([
   "email",
   "emails",
@@ -23,13 +25,6 @@ const FAMILY_NAME_CLAIM_TYPES = new Set([
   "surname",
   "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname",
 ]);
-
-export const PROVIDERS = {
-  google: { label: "Continue with Google", route: "google" },
-  aad: { label: "Continue with Microsoft", route: "aad" },
-} as const;
-
-export type ProviderName = keyof typeof PROVIDERS;
 
 type PrincipalClaim = {
   typ?: unknown;

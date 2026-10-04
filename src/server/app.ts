@@ -6,13 +6,11 @@ import helmet from "helmet";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  PROVIDERS,
   decodePrincipal,
   getPrincipalEmail,
   getPrincipalName,
   parseAllowedEmails,
   parseProviders,
-  type ProviderName,
 } from "./auth.js";
 import {
   createChatHandler,
@@ -23,10 +21,12 @@ import {
   AccessRequestValidationError,
   createAccessRequestRateLimiter,
   createFormspreeAccessRequestSender,
-  MAX_ACCESS_REQUEST_MESSAGE_LENGTH,
   parseAccessRequestBody,
   type AccessRequestSender,
 } from "./access-request.js";
+
+import type { ProviderName, SessionResponse } from "../shared/auth.js";
+import type { AccessRequestResponse } from "../shared/access-request.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_DIST_DIR = path.resolve(__dirname, "../../dist");
@@ -59,166 +59,22 @@ function securityMiddleware(): RequestHandler {
   });
 }
 
-function page(title: string, body: string): string {
-  return `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="robots" content="noindex, nofollow, noarchive, nosnippet" />
-    <title>${title}</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <style>
-      :root { font-family: Montserrat, system-ui, sans-serif; color: #f5efe0; background: #5c6e3a; }
-      * { box-sizing: border-box; }
-      body { min-height: 100vh; margin: 0; display: grid; place-items: center; padding: 1.5rem; }
-      main { width: min(30rem, 100%); padding: 2.25rem; border: 1px solid rgba(245,239,224,.4); border-radius: 1rem; background: rgba(24,35,17,.28); box-shadow: 0 1.25rem 3rem rgba(0,0,0,.18); }
-      h1 { margin: 0 0 .75rem; font-family: Georgia, serif; font-size: clamp(2rem, 8vw, 3rem); font-weight: 500; }
-      p { line-height: 1.6; }
-      .actions { display: grid; gap: .75rem; margin-top: 1.5rem; }
-      a, button { display: block; width: 100%; padding: .9rem 1rem; border: 0; border-radius: .65rem; color: #314021; background: #f5efe0; text-align: center; text-decoration: none; font: inherit; font-weight: 700; cursor: pointer; }
-      a:hover, button:hover { background: #fffaf0; }
-      form { display: grid; gap: .75rem; margin-top: 1.5rem; font-family: Montserrat, system-ui, sans-serif; }
-      label { font-weight: 700; }
-      textarea { width: 100%; min-height: 7rem; resize: vertical; padding: .8rem; border: 1px solid rgba(245,239,224,.55); border-radius: .65rem; color: #f5efe0; background: rgba(24,35,17,.38); font: inherit; }
-      textarea::placeholder { color: rgba(245,239,224,.68); }
-      .error { padding: .75rem; border-radius: .5rem; color: #3f160f; background: #ffd7cc; }
-      .quiet { font-size: .9rem; opacity: .82; }
-    </style>
-  </head>
-  <body><main>${body}</main></body>
-</html>`;
-}
-
-function loginPage(providers: ProviderName[]): string {
-  const links = providers
-    .map((provider) => {
-      const config = PROVIDERS[provider];
-      return `<a href="/.auth/login/${config.route}?post_login_redirect_uri=%2F">${config.label}</a>`;
-    })
-    .join("\n");
-
-  return page(
-    "Guest sign in",
-    `<h1>Welcome</h1>
-     <p>Please sign in with the same email address that received your invitation.</p>
-     <div class="actions">${links}</div>
-     <p class="quiet">Access is limited to invited guests.</p>`,
-  );
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
-
-function deniedPage({
-  email,
-  accessRequestsEnabled,
-  error,
-}: {
-  email?: string | null;
-  accessRequestsEnabled: boolean;
-  error?: string;
-}): string {
-  const requestForm =
-    email && accessRequestsEnabled
-      ? `<p>Signed in as <strong>${escapeHtml(email)}</strong>.</p>
-         ${error ? `<p class="error">${escapeHtml(error)}</p>` : ""}
-         <form method="post" action="/request-access">
-           <label for="message">Message <span class="quiet">(optional)</span></label>
-           <textarea id="message" name="message" maxlength="${MAX_ACCESS_REQUEST_MESSAGE_LENGTH}" placeholder="Tell us how you know the couple."></textarea>
-           <button type="submit">Request access</button>
-         </form>`
-      : `<p class="quiet">Access requests are not available right now. Please contact the couple directly.</p>`;
-
-  return page(
-    "Access denied",
-    `<h1>Access denied</h1>
-     <p>Thank you for visiting our website, we’re excited to share our day with you! 
-     To protect our private event information our website is only accessible with an email signin. Please request access for your email and we’ll make sure to get you on the list!</p>
-     ${requestForm}
-     <div class="actions"><a href="/.auth/logout?post_logout_redirect_uri=%2Flogin">Try another account</a></div>`,
-  );
-}
-
-function accessRequestSubmittedPage(email: string): string {
-  return page(
-    "Access requested",
-    `<h1>Request sent</h1>
-     <p>We sent an access request for <strong>${escapeHtml(email)}</strong>. You will be able to sign in after the couple approves it.</p>
-     <div class="actions"><a href="/.auth/logout?post_logout_redirect_uri=%2Flogin">Return to sign in</a></div>`,
-  );
-}
-
-function accessRequestUnavailablePage(): string {
-  return page(
-    "Request unavailable",
-    `<h1>Request not sent</h1>
-     <p>We could not send your request right now. Please try again later or contact the couple directly.</p>
-     <div class="actions"><a href="/">Try again</a></div>`,
-  );
-}
-
-function accessRequestLimitedPage(): string {
-  return page(
-    "Request already sent",
-    `<h1>Request already sent</h1>
-     <p>We already received a recent request from this account. Please give the couple some time to approve it.</p>`,
-  );
-}
-
 function isApiRequest(pathname: string): boolean {
   return pathname === "/api" || pathname.startsWith("/api/");
 }
 
-const apiBodyErrorHandler: ErrorRequestHandler = (
-  error,
-  request,
-  response,
-  next,
-) => {
-  if (!isApiRequest(request.path)) {
+const requestErrorHandler: ErrorRequestHandler = (error, _request, response, next) => {
+  if (response.headersSent) {
     next(error);
     return;
   }
-
   const status = typeof error?.status === "number" ? error.status : 500;
   if (status === 400 || status === 413) {
-    response.status(400).json({ error: "Invalid chat request." });
+    response.status(400).json({ status: "invalid_request", error: "Invalid request body." });
     return;
   }
-
-  console.error("API request failed", error);
-  response.status(500).json({ error: "The request could not be completed." });
-};
-
-const accessRequestBodyErrorHandler: ErrorRequestHandler = (
-  error,
-  request,
-  response,
-  next,
-) => {
-  if (request.path !== "/request-access") {
-    next(error);
-    return;
-  }
-
-  const status = typeof error?.status === "number" ? error.status : 500;
-  response.setHeader("Cache-Control", "no-store");
-  if (status === 400 || status === 413) {
-    response.status(400).type("html").send(accessRequestUnavailablePage());
-    return;
-  }
-
-  console.error("Access request failed", error);
-  response.status(500).type("html").send(accessRequestUnavailablePage());
+  console.error("Request failed", error);
+  response.status(500).json({ status: "error", error: "The request could not be completed." });
 };
 
 export type CreateAppOptions = {
@@ -249,6 +105,8 @@ export function createApp({
 }: CreateAppOptions = {}) {
   const app = express();
   const indexPath = path.join(distDir, "index.html");
+  const authDistDir = path.join(distDir, "auth");
+  const authIndexPath = path.join(authDistDir, "index.html");
   const checkChatRateLimit = createGuestRateLimiter(chatRateLimit);
   const sendAccessRequest =
     accessRequestSender === undefined
@@ -261,6 +119,7 @@ export function createApp({
   app.disable("x-powered-by");
   app.use(securityMiddleware());
   app.use((_request, response, next) => {
+    response.setHeader("Cache-Control", "private, no-store");
     response.setHeader(
       "X-Robots-Tag",
       "noindex, nofollow, noarchive, nosnippet",
@@ -273,38 +132,56 @@ export function createApp({
     response.status(200).type("text/plain").send("ok");
   });
 
+  // Only the sign-in client is public. Wedding bundles and assets remain gated.
+  app.use("/auth", express.static(authDistDir, { index: false, redirect: false }));
   app.get("/login", (_request, response) => {
-    response.setHeader("Cache-Control", "no-store");
-    response.status(200).type("html").send(loginPage(providers));
+    response.sendFile(authIndexPath);
+  });
+
+  app.get("/api/session", (request, response) => {
+    const rawPrincipal = request.get("x-ms-client-principal");
+    const principal = decodePrincipal(rawPrincipal);
+    const email = getPrincipalEmail(principal);
+    const session: SessionResponse = {
+      status: !rawPrincipal
+        ? "anonymous"
+        : !principal
+          ? "invalid"
+          : email && allowedEmails.has(email)
+            ? "allowed"
+            : "denied",
+      email,
+      name: getPrincipalName(principal),
+      providers,
+      accessRequestsEnabled: Boolean(email && !allowedEmails.has(email) && sendAccessRequest),
+    };
+    response.json(session);
   });
 
   app.post(
-    "/request-access",
-    express.urlencoded({ extended: false, limit: "4kb" }),
+    ["/api/request-access", "/request-access"],
+    express.json({ limit: "4kb", strict: true }),
     async (request, response) => {
-      response.setHeader("Cache-Control", "no-store");
+      const reply = (status: number, body: AccessRequestResponse) => response.status(status).json(body);
       const principal = decodePrincipal(request.get("x-ms-client-principal"));
       if (!principal) {
-        response.redirect(303, "/login");
+        reply(401, { status: "unauthenticated", error: "Please sign in again." });
         return;
       }
 
       const email = getPrincipalEmail(principal);
       if (!email) {
-        response
-          .status(403)
-          .type("html")
-          .send(deniedPage({ accessRequestsEnabled: false }));
+        reply(403, { status: "forbidden", error: "This account does not have a verified email address." });
         return;
       }
 
       if (allowedEmails.has(email)) {
-        response.redirect(303, "/");
+        reply(200, { status: "already_allowed" });
         return;
       }
 
       if (!sendAccessRequest) {
-        response.status(503).type("html").send(accessRequestUnavailablePage());
+        reply(503, { status: "unavailable", error: "Access requests are not available right now." });
         return;
       }
 
@@ -313,23 +190,18 @@ export function createApp({
         ({ message } = parseAccessRequestBody(request.body));
       } catch (error) {
         if (!(error instanceof AccessRequestValidationError)) throw error;
-        response
-          .status(400)
-          .type("html")
-          .send(
-            deniedPage({
-              email,
-              accessRequestsEnabled: true,
-              error: "Please shorten your message and try again.",
-            }),
-          );
+        reply(400, { status: "invalid_message", error: "Please shorten your message and try again." });
         return;
       }
 
       const rateLimit = accessRequestRateLimiter.reserve(email);
       if (!rateLimit.allowed) {
         response.setHeader("Retry-After", String(rateLimit.retryAfterSeconds));
-        response.status(429).type("html").send(accessRequestLimitedPage());
+        reply(429, {
+          status: "rate_limited",
+          error: "We already received a recent request from this account.",
+          retryAfterSeconds: rateLimit.retryAfterSeconds,
+        });
         return;
       }
 
@@ -344,18 +216,16 @@ export function createApp({
       } catch (error) {
         accessRequestRateLimiter.release(email);
         console.error("Access request delivery failed", error);
-        response.status(502).type("html").send(accessRequestUnavailablePage());
+        reply(502, { status: "unavailable", error: "We could not send your request right now." });
         return;
       }
 
-      response.status(200).type("html").send(accessRequestSubmittedPage(email));
+      reply(200, { status: "sent", email });
     },
   );
 
-  app.use(accessRequestBodyErrorHandler);
-
   app.use((request, response, next) => {
-    const apiRequest = isApiRequest(request.path);
+    const apiRequest = isApiRequest(request.path) || !["GET", "HEAD"].includes(request.method);
     const rawPrincipal = request.get("x-ms-client-principal");
     if (!rawPrincipal) {
       if (apiRequest) {
@@ -364,7 +234,7 @@ export function createApp({
           .status(401)
           .json({ error: "Your session has expired. Please sign in again." });
       }
-      return response.redirect(302, "/login");
+      return response.status(302).set("Location", "/login").end();
     }
 
     const principal = decodePrincipal(rawPrincipal);
@@ -375,10 +245,7 @@ export function createApp({
           .status(401)
           .json({ error: "Your session has expired. Please sign in again." });
       }
-      return response
-        .status(401)
-        .type("html")
-        .send(deniedPage({ accessRequestsEnabled: false }));
+      return response.status(401).sendFile(authIndexPath);
     }
 
     const email = getPrincipalEmail(principal);
@@ -401,15 +268,7 @@ export function createApp({
           .status(403)
           .json({ error: "This account does not have access." });
       }
-      return response
-        .status(403)
-        .type("html")
-        .send(
-          deniedPage({
-            email,
-            accessRequestsEnabled: Boolean(sendAccessRequest),
-          }),
-        );
+      return response.status(403).sendFile(authIndexPath);
     }
 
     response.locals.authenticatedEmail = email;
@@ -443,7 +302,9 @@ export function createApp({
     createChatHandler({ model: chatModel }),
   );
 
-  app.use(apiBodyErrorHandler);
+  app.use("/api", (_request, response) => {
+    response.status(404).json({ error: "API endpoint not found." });
+  });
 
   app.use(
     express.static(distDir, {
@@ -459,6 +320,11 @@ export function createApp({
     response.setHeader("Cache-Control", "private, no-store");
     response.sendFile(indexPath);
   });
+
+  app.use((_request, response) => {
+    response.status(404).json({ error: "Endpoint not found." });
+  });
+  app.use(requestErrorHandler);
 
   return app;
 }

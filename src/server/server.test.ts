@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import type { AddressInfo } from "node:net";
 import os from "node:os";
 import path from "node:path";
@@ -28,7 +28,6 @@ import {
   type StreamingChatModel,
 } from "./chat.js";
 import {
-  MAX_ACCESS_REQUEST_MESSAGE_LENGTH,
   AccessRequestDeliveryError,
   AccessRequestValidationError,
   createAccessRequestRateLimiter,
@@ -41,6 +40,8 @@ import {
   atlantaActivities,
   atlantaRestaurantGroups,
 } from "../shared/things-to-do.js";
+
+import { MAX_ACCESS_REQUEST_MESSAGE_LENGTH } from "../shared/access-request.js";
 
 let distDir: string;
 
@@ -91,6 +92,9 @@ before(async () => {
   distDir = await mkdtemp(path.join(os.tmpdir(), "wedding-server-test-"));
   await writeFile(path.join(distDir, "index.html"), "<html>private wedding site</html>");
   await writeFile(path.join(distDir, "private.txt"), "private asset");
+  await mkdir(path.join(distDir, "auth/assets"), { recursive: true });
+  await writeFile(path.join(distDir, "auth/index.html"), "<html>public sign-in client</html>");
+  await writeFile(path.join(distDir, "auth/assets/login.js"), "// public sign-in bundle");
 });
 
 after(async () => {
@@ -355,7 +359,7 @@ test("keeps login and health endpoints public", async () => {
   try {
     const login = await fetch(`${testApp.baseUrl}/login`);
     assert.equal(login.status, 200);
-    assert.match(await login.text(), /Continue with Google/);
+    assert.equal(await login.text(), "<html>public sign-in client</html>");
     assert.match(login.headers.get("cache-control") ?? "", /no-store/);
 
     const health = await fetch(`${testApp.baseUrl}/healthz`);
@@ -432,7 +436,7 @@ test("denies an authenticated email that is not on the list", async () => {
       headers: authHeaders("stranger@example.com"),
     });
     assert.equal(pageResponse.status, 403);
-    assert.match(await pageResponse.text(), /Access denied/);
+    assert.equal(await pageResponse.text(), "<html>public sign-in client</html>");
 
     const apiResponse = await fetch(`${testApp.baseUrl}/api/chat`, {
       method: "POST",
@@ -449,23 +453,24 @@ test("denies an authenticated email that is not on the list", async () => {
   }
 });
 
-test("shows the access request form only when delivery is configured", async () => {
+test("exposes access-request availability and verified identity as session JSON", async () => {
   const configuredApp = await startTestApp({ accessRequestSender: async () => {} });
   const disabledApp = await startTestApp({ accessRequestSender: null });
   try {
-    const configured = await fetch(`${configuredApp.baseUrl}/`, {
-      headers: authHeaders("stranger@example.com"),
-    });
-    assert.equal(configured.status, 403);
-    const configuredHtml = await configured.text();
-    assert.match(configuredHtml, /action="\/request-access"/);
-    assert.match(configuredHtml, /stranger@example\.com/);
-
-    const disabled = await fetch(`${disabledApp.baseUrl}/`, {
-      headers: authHeaders("stranger@example.com"),
-    });
-    assert.equal(disabled.status, 403);
-    assert.doesNotMatch(await disabled.text(), /action="\/request-access"/);
+    for (const [app, enabled] of [[configuredApp, true], [disabledApp, false]] as const) {
+      const response = await fetch(`${app.baseUrl}/api/session`, {
+        headers: authHeaders("Stranger@example.com", "email", "Wedding Guest"),
+      });
+      assert.equal(response.status, 200);
+      assert.match(response.headers.get("cache-control") ?? "", /no-store/);
+      assert.deepEqual(await response.json(), {
+        status: "denied",
+        email: "stranger@example.com",
+        name: "Wedding Guest",
+        providers: ["google", "aad"],
+        accessRequestsEnabled: enabled,
+      });
+    }
   } finally {
     await configuredApp.close();
     await disabledApp.close();
@@ -481,20 +486,22 @@ test("submits an access request using only the verified identity email", async (
   });
 
   try {
-    const response = await fetch(`${testApp.baseUrl}/request-access`, {
+    const response = await fetch(`${testApp.baseUrl}/api/request-access`, {
       method: "POST",
       headers: {
         ...authHeaders("Stranger@Example.com", "email", "Trevor Guest"),
-        "Content-Type": "application/x-www-form-urlencoded",
+        "Content-Type": "application/json",
       },
-      body: new URLSearchParams({
+      body: JSON.stringify({
         email: "spoofed@example.com",
         message: "  I am an invited guest.  ",
       }),
     });
 
     assert.equal(response.status, 200);
-    assert.match(await response.text(), /Request sent/);
+    assert.deepEqual(await response.json(), { status: "sent", email: "stranger@example.com" });
+    assert.equal(response.headers.get("location"), null);
+    assert.match(response.headers.get("cache-control") ?? "", /no-store/);
     assert.equal(requests.length, 1);
     assert.equal(requests[0]?.email, "stranger@example.com");
     assert.equal(requests[0]?.name, "Trevor Guest");
@@ -506,7 +513,7 @@ test("submits an access request using only the verified identity email", async (
   }
 });
 
-test("requires authentication for access requests and redirects allowed guests", async () => {
+test("returns JSON for anonymous and already-allowed access requests", async () => {
   let senderCalled = false;
   const testApp = await startTestApp({
     accessRequestSender: async () => {
@@ -515,26 +522,28 @@ test("requires authentication for access requests and redirects allowed guests",
   });
 
   try {
-    const anonymous = await fetch(`${testApp.baseUrl}/request-access`, {
+    const anonymous = await fetch(`${testApp.baseUrl}/api/request-access`, {
       method: "POST",
       redirect: "manual",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: "message=hello",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: "hello" }),
     });
-    assert.equal(anonymous.status, 303);
-    assert.equal(anonymous.headers.get("location"), "/login");
+    assert.equal(anonymous.status, 401);
+    assert.equal(anonymous.headers.get("location"), null);
+    assert.deepEqual(await anonymous.json(), { status: "unauthenticated", error: "Please sign in again." });
 
-    const allowed = await fetch(`${testApp.baseUrl}/request-access`, {
+    const allowed = await fetch(`${testApp.baseUrl}/api/request-access`, {
       method: "POST",
       redirect: "manual",
       headers: {
         ...authHeaders("guest@example.com"),
-        "Content-Type": "application/x-www-form-urlencoded",
+        "Content-Type": "application/json",
       },
-      body: "message=hello",
+      body: JSON.stringify({ message: "hello" }),
     });
-    assert.equal(allowed.status, 303);
-    assert.equal(allowed.headers.get("location"), "/");
+    assert.equal(allowed.status, 200);
+    assert.equal(allowed.headers.get("location"), null);
+    assert.deepEqual(await allowed.json(), { status: "already_allowed" });
     assert.equal(senderCalled, false);
   } finally {
     await testApp.close();
@@ -549,13 +558,13 @@ test("rate limits duplicate access requests", async () => {
     },
   });
   const request = () =>
-    fetch(`${testApp.baseUrl}/request-access`, {
+    fetch(`${testApp.baseUrl}/api/request-access`, {
       method: "POST",
       headers: {
         ...authHeaders("stranger@example.com"),
-        "Content-Type": "application/x-www-form-urlencoded",
+        "Content-Type": "application/json",
       },
-      body: "message=hello",
+      body: JSON.stringify({ message: "hello" }),
     });
 
   try {
@@ -563,6 +572,11 @@ test("rate limits duplicate access requests", async () => {
     const duplicate = await request();
     assert.equal(duplicate.status, 429);
     assert.ok(Number(duplicate.headers.get("retry-after")) >= 1);
+    assert.deepEqual(await duplicate.json(), {
+      status: "rate_limited",
+      error: "We already received a recent request from this account.",
+      retryAfterSeconds: Number(duplicate.headers.get("retry-after")),
+    });
     assert.equal(sendCount, 1);
   } finally {
     await testApp.close();
@@ -578,17 +592,19 @@ test("allows an access request retry after a delivery failure", async () => {
     },
   });
   const request = () =>
-    fetch(`${testApp.baseUrl}/request-access`, {
+    fetch(`${testApp.baseUrl}/api/request-access`, {
       method: "POST",
       headers: {
         ...authHeaders("stranger@example.com"),
-        "Content-Type": "application/x-www-form-urlencoded",
+        "Content-Type": "application/json",
       },
-      body: "message=hello",
+      body: JSON.stringify({ message: "hello" }),
     });
 
   try {
-    assert.equal((await request()).status, 502);
+    const failed = await request();
+    assert.equal(failed.status, 502);
+    assert.deepEqual(await failed.json(), { status: "unavailable", error: "We could not send your request right now." });
     assert.equal((await request()).status, 200);
     assert.equal(sendCount, 2);
   } finally {
@@ -787,6 +803,121 @@ test("aborts the model stream when the browser disconnects", async () => {
       await new Promise((resolve) => setTimeout(resolve, 10));
     }
     assert.equal(streamAborted, true);
+  } finally {
+    await testApp.close();
+  }
+});
+
+test("returns all session states without exposing the guest allowlist", async () => {
+  const testApp = await startTestApp({ providers: ["aad"], accessRequestSender: async () => {} });
+  try {
+    const cases = [
+      { headers: {}, status: "anonymous", email: null },
+      { headers: { "x-ms-client-principal": "invalid" }, status: "invalid", email: null },
+      { headers: authHeaders("guest@example.com", "name"), status: "denied", email: null },
+      { headers: authHeaders("GUEST@example.com"), status: "allowed", email: "guest@example.com" },
+    ];
+    for (const { headers, status, email } of cases) {
+      const response = await fetch(`${testApp.baseUrl}/api/session`, { headers: headers as Record<string, string> });
+      assert.equal(response.status, 200);
+      assert.deepEqual(await response.json(), {
+        status, email, name: status === "denied" ? "guest@example.com" : null,
+        providers: ["aad"], accessRequestsEnabled: false,
+      });
+      assert.match(response.headers.get("cache-control") ?? "", /no-store/);
+    }
+  } finally {
+    await testApp.close();
+  }
+});
+
+test("serves only the sign-in bundle publicly and blocks private assets and traversal", async () => {
+  const testApp = await startTestApp();
+  try {
+    for (const headers of [{}, authHeaders("stranger@example.com")]) {
+      const publicAsset = await fetch(`${testApp.baseUrl}/auth/assets/login.js`, { headers });
+      assert.equal(publicAsset.status, 200);
+      assert.equal(await publicAsset.text(), "// public sign-in bundle");
+      assert.match(publicAsset.headers.get("cache-control") ?? "", /no-store/);
+      for (const url of ["/private.txt", "/auth/%2e%2e%2fprivate.txt"]) {
+        const privateAsset = await fetch(`${testApp.baseUrl}${url}`, { headers, redirect: "manual" });
+        assert.notEqual(privateAsset.status, 200);
+        assert.doesNotMatch(await privateAsset.text(), /private asset|private wedding site/);
+      }
+    }
+  } finally {
+    await testApp.close();
+  }
+});
+
+test("rejects invalid access-request bodies with JSON and does not send or reserve a request", async () => {
+  let sendCount = 0;
+  const testApp = await startTestApp({ accessRequestSender: async () => { sendCount += 1; } });
+  try {
+    for (const body of [
+      "{", "null", "[]",
+      JSON.stringify({ message: 1 }),
+      JSON.stringify({ message: "x".repeat(MAX_ACCESS_REQUEST_MESSAGE_LENGTH + 1) }),
+      JSON.stringify({ message: "x".repeat(5_000) }),
+    ]) {
+      const response = await fetch(`${testApp.baseUrl}/api/request-access`, {
+        method: "POST",
+        headers: { ...authHeaders("stranger@example.com"), "Content-Type": "application/json" },
+        body,
+      });
+      assert.equal(response.status, 400);
+      assert.match(response.headers.get("content-type") ?? "", /application\/json/);
+      assert.match(response.headers.get("cache-control") ?? "", /no-store/);
+      assert.equal(response.headers.get("location"), null);
+      const result = await response.json() as { status: string; error: string };
+      assert.match(result.status, /^invalid_(message|request)$/);
+      assert.equal(typeof result.error, "string");
+    }
+    assert.equal(sendCount, 0);
+    // The original POST URL is retained, with the same JSON contract.
+    const valid = await fetch(`${testApp.baseUrl}/request-access`, {
+      method: "POST",
+      headers: { ...authHeaders("stranger@example.com"), "Content-Type": "application/json" },
+      body: "{}",
+    });
+    assert.equal(valid.status, 200);
+    assert.deepEqual(await valid.json(), { status: "sent", email: "stranger@example.com" });
+    assert.equal(sendCount, 1);
+  } finally {
+    await testApp.close();
+  }
+});
+
+test("returns JSON when access requests are disabled or identity has no email", async () => {
+  const testApp = await startTestApp({ accessRequestSender: null });
+  try {
+    for (const [headers, status, result] of [
+      [authHeaders("stranger@example.com"), 503, "unavailable"],
+      [authHeaders("guest@example.com", "name"), 403, "forbidden"],
+      [{ "x-ms-client-principal": "invalid" }, 401, "unauthenticated"],
+    ] as const) {
+      const response = await fetch(`${testApp.baseUrl}/api/request-access`, {
+        method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: "{}",
+      });
+      assert.equal(response.status, status);
+      assert.equal((await response.json() as { status: string }).status, result);
+      assert.equal(response.headers.get("location"), null);
+    }
+  } finally {
+    await testApp.close();
+  }
+});
+
+test("unknown API endpoints and unsupported posts return JSON instead of HTML", async () => {
+  const testApp = await startTestApp();
+  try {
+    for (const [requestPath, method] of [["/api/missing", "GET"], ["/api", "GET"], ["/api/missing", "POST"], ["/login", "POST"]]) {
+      const response = await fetch(`${testApp.baseUrl}${requestPath}`, {
+        method, headers: authHeaders("guest@example.com"),
+      });
+      assert.equal(response.status, 404);
+      assert.equal(typeof (await response.json() as { error: string }).error, "string");
+    }
   } finally {
     await testApp.close();
   }
