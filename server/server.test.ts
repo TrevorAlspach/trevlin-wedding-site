@@ -324,6 +324,32 @@ test("encodes SSE events and limits each guest independently", () => {
   assert.equal(limit("a@example.com").allowed, true);
 });
 
+test("returns the signed-in RSVP identity only to allowed guests without caching", async () => {
+  const testApp = await startTestApp();
+  try {
+    const response = await fetch(`${testApp.baseUrl}/api/me`, {
+      headers: authHeaders("GUEST@example.com", "email", "Wedding Guest"),
+    });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { email: "guest@example.com", name: "Wedding Guest" });
+    assert.match(response.headers.get("cache-control") ?? "", /no-store/);
+
+    const missingName = await fetch(`${testApp.baseUrl}/api/me`, {
+      headers: authHeaders("guest@example.com"),
+    });
+    assert.deepEqual(await missingName.json(), { email: "guest@example.com", name: null });
+
+    const anonymous = await fetch(`${testApp.baseUrl}/api/me`);
+    assert.equal(anonymous.status, 401);
+    const denied = await fetch(`${testApp.baseUrl}/api/me`, {
+      headers: authHeaders("uninvited@example.com"),
+    });
+    assert.equal(denied.status, 403);
+  } finally {
+    await testApp.close();
+  }
+});
+
 test("keeps login and health endpoints public", async () => {
   const testApp = await startTestApp();
   try {

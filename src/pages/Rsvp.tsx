@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Box,
   Typography,
@@ -10,6 +10,7 @@ import {
   FormLabel,
   FormControl,
   CircularProgress,
+  Alert,
 } from "@mui/material";
 import { useForm, ValidationError } from "@formspree/react";
 
@@ -44,6 +45,32 @@ const Rsvp: React.FC = () => {
   const [attending, setAttending] = useState("yes");
   const [guestCount, setGuestCount] = useState(1);
   const [guestNames, setGuestNames] = useState<string[]>([""]);
+  const [identity, setIdentity] = useState<{ name: string; email: string } | null>(null);
+  const [identityError, setIdentityError] = useState("");
+
+  useEffect(() => {
+    const controller = new AbortController();
+    async function loadIdentity() {
+      try {
+        const response = await fetch("/api/me", { signal: controller.signal });
+        if (!response.ok) {
+          throw new Error("Unable to load your account. Please sign in again and reload this page.");
+        }
+        const account = await response.json();
+        if (typeof account.name !== "string" || !account.name.trim() ||
+            typeof account.email !== "string" || !account.email.trim()) {
+          throw new Error("Your account is missing a name or email. Please update your sign-in profile and sign in again.");
+        }
+        if (!controller.signal.aborted) setIdentity(account);
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          setIdentityError(error instanceof Error ? error.message : "Unable to load your account. Please reload this page.");
+        }
+      }
+    }
+    void loadIdentity();
+    return () => controller.abort();
+  }, []);
 
   if (state.succeeded) {
     return (
@@ -86,7 +113,13 @@ const Rsvp: React.FC = () => {
 
       <Box
         component="form"
-        onSubmit={handleSubmit}
+        onSubmit={(event) => {
+          if (!identity) {
+            event.preventDefault();
+            return;
+          }
+          void handleSubmit(event);
+        }}
         sx={{ display: "flex", flexDirection: "column", gap: 3, fontFamily: SANS }}
       >
         {/* Honeypot: hidden from humans; bots that fill it get silently dropped by Formspree */}
@@ -98,10 +131,27 @@ const Rsvp: React.FC = () => {
           aria-hidden="true"
           style={{ display: "none" }}
         />
+        {identityError ? (
+          <Alert severity="error">{identityError}</Alert>
+        ) : !identity && (
+          <Typography role="status" sx={{ color: IVORY }}>Loading your account…</Typography>
+        )}
+        <TextField
+          label="Your name"
+          name="guest_name_1"
+          value={identity?.name ?? ""}
+          slotProps={{ input: { readOnly: true }, inputLabel: { shrink: true } }}
+          required
+          fullWidth
+          variant="outlined"
+          sx={fieldSx}
+        />
         <TextField
           label="Email"
           name="email"
           type="email"
+          value={identity?.email ?? ""}
+          slotProps={{ input: { readOnly: true }, inputLabel: { shrink: true } }}
           required
           fullWidth
           variant="outlined"
@@ -143,17 +193,6 @@ const Rsvp: React.FC = () => {
           </RadioGroup>
         </FormControl>
 
-        {attending === "no" && (
-          <TextField
-            label="Your name"
-            name="guest_name_1"
-            required
-            fullWidth
-            variant="outlined"
-            sx={fieldSx}
-          />
-        )}
-
         {attending === "yes" && (
           <>
             <TextField
@@ -175,10 +214,12 @@ const Rsvp: React.FC = () => {
               variant="outlined"
               sx={fieldSx}
             />
-            {guestNames.map((name, i) => (
+            {guestNames.slice(1).map((name, index) => {
+              const i = index + 1;
+              return (
               <TextField
                 key={i}
-                label={i === 0 ? "Your name" : `Guest ${i + 1} name`}
+                label={`Guest ${i + 1} name`}
                 name={`guest_name_${i + 1}`}
                 value={name}
                 onChange={(e) =>
@@ -189,7 +230,8 @@ const Rsvp: React.FC = () => {
                 variant="outlined"
                 sx={fieldSx}
               />
-            ))}
+              );
+            })}
           </>
         )}
 
@@ -219,7 +261,7 @@ const Rsvp: React.FC = () => {
           type="submit"
           variant="contained"
           size="large"
-          disabled={state.submitting}
+          disabled={state.submitting || !identity}
           sx={{
             mt: 1,
             color: "#3a3a1a",

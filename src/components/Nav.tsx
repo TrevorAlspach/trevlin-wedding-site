@@ -53,7 +53,9 @@ const Nav: React.FC = () => {
       <Button component={Link} to="/chat" sx={linkSx}>
         TaroBot
       </Button>
-      {/* <Button component={Link} to="/rsvp" sx={linkSx}>RSVP</Button> */}
+      <Button component={Link} to="/rsvp" sx={linkSx}>
+        RSVP
+      </Button>
     </Box>
   );
 };

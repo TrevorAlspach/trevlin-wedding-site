@@ -418,6 +418,13 @@ export function createApp({
     return next();
   });
 
+  app.get("/api/me", (_request, response) => {
+    response.json({
+      email: response.locals.authenticatedEmail,
+      name: response.locals.authenticatedName,
+    });
+  });
+
   app.post(
     "/api/chat",
     express.json({ limit: "32kb", strict: true }),
