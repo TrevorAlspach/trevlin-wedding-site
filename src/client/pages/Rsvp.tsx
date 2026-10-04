@@ -32,31 +32,34 @@ import type { CurrentUser } from "../../shared/auth";
 
 const IVORY = "#f5efe0";
 const CORAL = "#ff9d6c";
+const BEIGE = "#e9edc6";
+const INK = "#26311c";
 const SERIF = "'Cormorant Garamond', serif";
 const SANS = "'Montserrat', 'Roboto', sans-serif";
 
 const fieldSx = {
-  "& .MuiInputLabel-root": { color: IVORY, fontFamily: SANS },
-  "& .MuiInputLabel-root.Mui-focused": { color: IVORY },
+  "& .MuiInputLabel-root": { color: INK, fontFamily: SANS },
+  "& .MuiInputLabel-root.Mui-focused": { color: INK },
   "& .MuiOutlinedInput-root": {
-    color: IVORY,
+    color: INK,
     fontFamily: SANS,
-    backgroundColor: "rgba(245, 239, 224, 0.08)",
-    "& fieldset": { borderColor: "rgba(245, 239, 224, 0.4)" },
-    "&:hover fieldset": { borderColor: "rgba(245, 239, 224, 0.7)" },
-    "&.Mui-focused fieldset": { borderColor: IVORY },
+    backgroundColor: IVORY,
+    borderRadius: 0,
+    "& fieldset": { borderColor: "rgba(38, 49, 28, 0.3)" },
+    "&:hover fieldset": { borderColor: "rgba(38, 49, 28, 0.6)" },
+    "&.Mui-focused fieldset": { borderColor: INK },
   },
-  "& .MuiSelect-icon": { color: IVORY },
-  "& .MuiFormHelperText-root": { color: IVORY, opacity: 0.8, fontFamily: SANS },
+  "& .MuiSelect-icon": { color: INK },
+  "& .MuiFormHelperText-root": { color: INK, opacity: 0.8, fontFamily: SANS },
 };
 
 const buttonSx = {
-  color: "#3a3a1a",
+  color: INK,
   fontFamily: SANS,
   fontSize: "1.1rem",
   backgroundColor: CORAL,
   "&:hover": { backgroundColor: "#f08152" },
-  "&:disabled": { backgroundColor: "rgba(255, 157, 108, 0.4)", color: "#3a3a1a" },
+  "&:disabled": { backgroundColor: "rgba(255, 157, 108, 0.4)", color: INK },
   boxShadow: "none",
   textTransform: "none",
   py: 1.5,
@@ -72,7 +75,7 @@ function AttendanceQuestion({ id, label, value, onChange, disabled }: {
 }) {
   return (
     <FormControl required disabled={disabled}>
-      <FormLabel id={`${id}-label`} sx={{ color: IVORY, fontFamily: SANS, "&.Mui-focused": { color: IVORY } }}>
+      <FormLabel id={`${id}-label`} sx={{ color: INK, fontFamily: SANS, "&.Mui-focused": { color: INK } }}>
         {label}
       </FormLabel>
       <RadioGroup
@@ -86,9 +89,9 @@ function AttendanceQuestion({ id, label, value, onChange, disabled }: {
           <FormControlLabel
             key={answer}
             value={answer}
-            control={<Radio required sx={{ color: IVORY, "&.Mui-checked": { color: CORAL } }} />}
+            control={<Radio required sx={{ color: INK, "&.Mui-checked": { color: INK } }} />}
             label={answer === "yes" ? "Yes" : "No"}
-            sx={{ color: IVORY, "& .MuiFormControlLabel-label": { fontFamily: SANS } }}
+            sx={{ color: INK, "& .MuiFormControlLabel-label": { fontFamily: SANS } }}
           />
         ))}
       </RadioGroup>
@@ -136,31 +139,33 @@ export default function Rsvp() {
   }, [version]);
 
   return (
-    <Box sx={{ maxWidth: 560, width: "100%", pt: 6, pb: 8, mx: "auto", px: 3, textAlign: "left" }}>
-      {error && <Alert severity="error" sx={{ mb: 2 }} action={
-        <Button color="inherit" disabled={submitting || loading} onClick={() => { setError(""); setLoading(true); setVersion((value) => value + 1); }}>Retry</Button>
-      }>{error}</Alert>}
-      {user?.isAdmin && (
-        <Box sx={{ mb: 4, display: "flex", flexDirection: "column", gap: 2 }}>
-          <Typography component="h2" sx={{ fontFamily: SERIF, fontSize: "1.8rem" }}>Admin RSVP access</Typography>
-          <Autocomplete
-            options={guests}
-            value={target}
-            onChange={(_event, guest) => setTarget(guest)}
-            getOptionLabel={(guest) => `${guest.name} — ${guest.email} (#${guest.id})`}
-            isOptionEqualToValue={(option, value) => option.id === value.id}
-            disabled={submitting || loading}
-            loading={loading}
-            noOptionsText="No guests found"
-            renderInput={(params) => <TextField {...params} label="Impersonate a guest" helperText="Search by name or email to open their RSVP." sx={fieldSx} />}
-          />
-          {target && <Alert severity="warning">
-            You are responding as {target.name} ({target.email}). Saving updates their selected family members’ real RSVPs.
-          </Alert>}
-          {target && <Button sx={buttonSx} disabled={submitting} onClick={() => setTarget(null)}>Stop impersonating</Button>}
-        </Box>
-      )}
-      <RsvpForm key={target?.id ?? "self"} target={target} onSubmittingChange={setSubmitting} />
+    <Box sx={{ width: "100%", minHeight: "calc(100vh - 80px)", backgroundColor: BEIGE, color: INK, py: { xs: 8, md: 11 }, px: 3, textAlign: "left" }}>
+      <Box sx={{ maxWidth: 560, mx: "auto" }}>
+        {error && <Alert severity="error" sx={{ mb: 2 }} action={
+          <Button color="inherit" disabled={submitting || loading} onClick={() => { setError(""); setLoading(true); setVersion((value) => value + 1); }}>Retry</Button>
+        }>{error}</Alert>}
+        {user?.isAdmin && (
+          <Box sx={{ mb: 4, display: "flex", flexDirection: "column", gap: 2 }}>
+            <Typography component="h2" sx={{ fontFamily: SERIF, fontSize: "1.8rem" }}>Admin RSVP access</Typography>
+            <Autocomplete
+              options={guests}
+              value={target}
+              onChange={(_event, guest) => setTarget(guest)}
+              getOptionLabel={(guest) => `${guest.name} — ${guest.email} (#${guest.id})`}
+              isOptionEqualToValue={(option, value) => option.id === value.id}
+              disabled={submitting || loading}
+              loading={loading}
+              noOptionsText="No guests found"
+              renderInput={(params) => <TextField {...params} label="Impersonate a guest" helperText="Search by name or email to open their RSVP." sx={fieldSx} />}
+            />
+            {target && <Alert severity="warning">
+              You are responding as {target.name} ({target.email}). Saving updates their selected family members’ real RSVPs.
+            </Alert>}
+            {target && <Button sx={buttonSx} disabled={submitting} onClick={() => setTarget(null)}>Stop impersonating</Button>}
+          </Box>
+        )}
+        <RsvpForm key={target?.id ?? "self"} target={target} onSubmittingChange={setSubmitting} />
+      </Box>
     </Box>
   );
 }
@@ -254,7 +259,7 @@ function RsvpForm({ target, onSubmittingChange }: {
 
   return (
     <Box>
-      <Typography component="h1" sx={{ color: IVORY, fontFamily: SERIF, fontWeight: 300, mb: 3, textAlign: "center", fontSize: { xs: "2.25rem", md: "2.75rem" } }}>
+      <Typography component="h1" sx={{ color: INK, fontFamily: SERIF, fontWeight: 300, fontStyle: "italic", lineHeight: 1.05, mb: 3, textAlign: "center", fontSize: { xs: "2.7rem", md: "4rem" } }}>
         {saved ? "Thank you!" : "RSVP"}
       </Typography>
 
@@ -272,7 +277,7 @@ function RsvpForm({ target, onSubmittingChange }: {
         </Box>
       ) : !details ? (
         <Box role="status" sx={{ textAlign: "center" }}>
-          <CircularProgress size={28} sx={{ color: IVORY, mb: 2 }} />
+          <CircularProgress size={28} sx={{ color: INK, mb: 2 }} />
           <Typography sx={{ fontFamily: SANS }}>Loading your family invitation…</Typography>
         </Box>
       ) : (
@@ -326,7 +331,7 @@ function RsvpForm({ target, onSubmittingChange }: {
           )}
 
           {selectedGuests.map((guest) => (
-            <Box key={guest.id} component="fieldset" sx={{ m: 0, p: { xs: 2, sm: 3 }, minWidth: 0, display: "flex", flexDirection: "column", gap: 2.5, border: "1px solid rgba(245,239,224,0.4)" }}>
+            <Box key={guest.id} component="fieldset" sx={{ m: 0, p: { xs: 2, sm: 3 }, minWidth: 0, display: "flex", flexDirection: "column", gap: 2.5, backgroundColor: IVORY, border: "1px solid rgba(38, 49, 28, 0.16)" }}>
               <Typography component="legend" sx={{ px: 1, fontFamily: SERIF, fontSize: "1.8rem" }}>
                 {guest.name}{guest.id === details.guestId ? target ? " (impersonating)" : " (you)" : ""}
               </Typography>
