@@ -4,6 +4,7 @@ import type { AddressInfo } from "node:net";
 import { test } from "node:test";
 import { DataSource } from "typeorm";
 import { createApp } from "./app.js";
+import { parseAdminEmail } from "./auth.js";
 import { databaseOptions } from "./db/config.js";
 import type { Family } from "./db/family.js";
 import type { Guest } from "./db/guest.js";
@@ -14,7 +15,8 @@ import {
   RsvpError,
   type RsvpStore,
 } from "./rsvp.js";
-import type { RsvpDetails, RsvpGuestResponse } from "../shared/rsvp.js";
+import type { RsvpAdminGuest, RsvpDetails, RsvpGuestResponse } from "../shared/rsvp.js";
+import type { CurrentUser } from "../shared/auth.js";
 
 function makeGuest(id: number, email: string, family = "family-a"): Guest {
   return {
@@ -46,6 +48,7 @@ function fixture() {
     async transaction(work) {
       const pending = structuredClone(state.guests);
       const result = await work({
+        findGuestById: async (id) => pending.find((guest) => guest.id === id) ?? null,
         findGuestsByEmail: async (email) => pending.filter((guest) => guest.email.trim().toLowerCase() === email),
         findFamily: async (id) => state.families.find((family) => family.familyId === id) ?? null,
         findMembers: async (id) => pending.filter((guest) => state.memberships.get(guest.id) === id),
@@ -86,6 +89,123 @@ test("RSVP lookup returns only the authenticated household with invitation flags
   assert.equal(result.guests[1]!.teaCeremonyRsvp, false);
   assert.equal("address" in result.guests[0]!, false);
   assert.equal("email" in result.guests[1]!, false);
+});
+
+test("admin configuration accepts one normalized email and defaults to no admin", () => {
+  assert.equal(parseAdminEmail(), null);
+  assert.equal(parseAdminEmail("  "), null);
+  assert.equal(parseAdminEmail(" ADMIN@Example.com "), "admin@example.com");
+  for (const invalid of ["*", "example.com", "a@example.com,b@example.com", "a@example.com;b@example.com", "a@example.com b@example.com"]) {
+    assert.throws(() => parseAdminEmail(invalid), /ADMIN_EMAIL/);
+  }
+});
+
+test("admin RSVP uses guest IDs for shared emails and retains family validation and atomic saves", async () => {
+  const { service, state } = fixture();
+  state.guests[2]!.email = "guest@example.com";
+  await assert.rejects(service.load("guest@example.com", null), status(409));
+  const details = await service.loadGuest(3);
+  assert.equal(details.guestId, 3);
+  assert.deepEqual(details.identity, { email: "guest@example.com", name: "Guest 3" });
+  assert.deepEqual(details.guests.map((guest) => guest.id), [3]);
+  await assert.rejects(service.loadGuest(999), status(404));
+  const response = answer(3, { teaCeremonyRsvp: null, rehearsalDinnerRsvp: true });
+  await assert.rejects(service.submitGuest(3, { guests: [response, answer(1)] }), status(403));
+  await assert.rejects(service.submitGuest(3, { guests: [answer(3)] }), status(400));
+  await assert.rejects(service.submitGuest(3, { guests: [answer(1)] }), status(400));
+  assert.equal(state.writes, 0);
+  await service.submitGuest(3, { guests: [response] });
+  assert.equal((await service.loadGuest(3)).guests[0]!.rehearsalDinnerRsvp, true);
+  assert.equal(state.guests[0]!.rsvpRespondedAt, null);
+  const before = structuredClone(state.guests);
+  state.failGuestId = 2;
+  await assert.rejects(service.submitGuest(1, { guests: [answer(1), answer(2)] }), /database failure/);
+  assert.deepEqual(state.guests, before);
+  state.memberships.delete(3);
+  await assert.rejects(service.submitGuest(3, { guests: [response] }), status(409));
+});
+
+test("admin HTTP routes require the configured allowed SSO account on every read and write", async () => {
+  const { service, state } = fixture();
+  let listReads = 0;
+  const app = createApp({
+    allowedEmails: new Set(["guest@example.com", "admin@example.com"]),
+    adminEmail: " ADMIN@EXAMPLE.COM ",
+    rsvpService: service,
+    guestRepository: {
+      async find(options) {
+        listReads++;
+        assert.deepEqual(options?.select, { id: true, name: true, email: true });
+        return state.guests.map(({ id, name, email }) => ({ id, name, email })) as Guest[];
+      },
+    },
+  });
+  const server = app.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  const baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  const request = (path: string, email?: string, body?: unknown, extraHeaders = {}) => fetch(`${baseUrl}${path}`, {
+    method: body ? "POST" : "GET",
+    headers: { ...(email ? auth(email) : {}), "Content-Type": "application/json", ...extraHeaders },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  try {
+    const payload = { guests: [answer(3, { teaCeremonyRsvp: null, rehearsalDinnerRsvp: false })] };
+    for (const path of ["/api/admin/rsvp/guests", "/api/admin/rsvp/3"]) {
+      assert.equal((await request(path)).status, 401);
+      assert.equal((await request(path, "guest@example.com")).status, 403);
+      assert.equal((await request(path, "other@example.com")).status, 403);
+    }
+    assert.equal((await request("/api/admin/rsvp/3", undefined, payload)).status, 401);
+    assert.equal((await request("/api/admin/rsvp/3", "guest@example.com", payload, { "x-admin-email": "admin@example.com", "x-is-admin": "true" })).status, 403);
+    assert.equal(state.writes, 0);
+    assert.equal(listReads, 0);
+    const me = await (await request("/api/me", "ADMIN@example.com")).json() as CurrentUser;
+    assert.equal(me.isAdmin, true);
+    const guestMe = await (await request("/api/me", "guest@example.com")).json() as CurrentUser;
+    assert.equal(guestMe.isAdmin, false);
+    assert.equal(JSON.stringify(guestMe).includes("admin@example.com"), false);
+    const list = await request("/api/admin/rsvp/guests", "admin@example.com");
+    assert.equal(list.status, 200);
+    assert.match(list.headers.get("cache-control") ?? "", /no-store/);
+    assert.deepEqual(Object.keys((await list.json() as RsvpAdminGuest[])[0]!).sort(), ["email", "id", "name"]);
+    // The administrator does not need their own invitation; the target need not be allowlisted.
+    assert.equal((await request("/api/rsvp", "admin@example.com")).status, 404);
+    const invitation = await request("/api/admin/rsvp/3", "admin@example.com");
+    assert.equal(invitation.status, 200);
+    assert.equal((await invitation.json() as RsvpDetails).identity.email, "other@example.com");
+    for (const id of ["0", "-1", "1.5", "abc", "9007199254740992"]) {
+      assert.equal((await request(`/api/admin/rsvp/${id}`, "admin@example.com")).status, 400);
+      assert.equal((await request(`/api/admin/rsvp/${id}`, "admin@example.com", payload)).status, 400);
+    }
+    assert.equal((await request("/api/admin/rsvp/999", "admin@example.com")).status, 404);
+    assert.equal((await request("/api/admin/rsvp/999", "admin@example.com", payload)).status, 404);
+    assert.equal((await request("/api/admin/rsvp/3", "admin@example.com", payload)).status, 200);
+    assert.equal(state.guests[2]!.rsvp, true);
+    assert.equal(state.guests[0]!.rsvpRespondedAt, null);
+    assert.equal((await request("/api/me", "admin@example.com").then((response) => response.json()) as CurrentUser).email, "admin@example.com");
+    assert.equal((await request("/api/rsvp?guestId=3", "guest@example.com").then((response) => response.json()) as RsvpDetails).guestId, 1);
+    assert.equal((await request("/api/rsvp", "guest@example.com", { ...payload, isAdmin: true, guestId: 3 })).status, 400);
+  } finally {
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
+test("admin access is disabled when unset and does not bypass the site allowlist", async () => {
+  for (const adminEmail of [null, "outside@example.com"]) {
+    const app = createApp({ allowedEmails: new Set(["guest@example.com"]), adminEmail });
+    const server = app.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    const baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+    try {
+      for (const email of ["guest@example.com", "outside@example.com"]) {
+        for (const method of ["GET", "POST"]) {
+          assert.equal((await fetch(`${baseUrl}/api/admin/rsvp/1`, { method, headers: auth(email) })).status, 403);
+        }
+      }
+    } finally {
+      await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    }
+  }
 });
 
 test("RSVP lookup rejects missing, ambiguous, unassigned, and inconsistent household records", async () => {

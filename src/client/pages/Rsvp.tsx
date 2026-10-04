@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import {
   Alert,
+  Autocomplete,
   Box,
   Button,
   Checkbox,
@@ -22,10 +23,12 @@ import {
   MAX_DIETARY_NOTES_LENGTH,
   MAX_SONG_REQUEST_LENGTH,
   type RsvpDetails,
+  type RsvpAdminGuest,
   type RsvpGuest,
   type RsvpGuestResponse,
   type RsvpSubmission,
 } from "../../shared/rsvp";
+import type { CurrentUser } from "../../shared/auth";
 
 const IVORY = "#f5efe0";
 const CORAL = "#ff9d6c";
@@ -99,6 +102,74 @@ async function responseError(response: Response, fallback: string): Promise<stri
 }
 
 export default function Rsvp() {
+  const [user, setUser] = useState<CurrentUser | null>(null);
+  const [guests, setGuests] = useState<RsvpAdminGuest[]>([]);
+  const [target, setTarget] = useState<RsvpAdminGuest | null>(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [version, setVersion] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    async function loadAdminTools() {
+      try {
+        const response = await fetch("/api/me", { signal: controller.signal });
+        if (!response.ok) throw new Error(await responseError(response, "Unable to load your account."));
+        const currentUser: CurrentUser = await response.json();
+        if (controller.signal.aborted) return;
+        setUser(currentUser);
+        if (currentUser.isAdmin) {
+          const guestResponse = await fetch("/api/admin/rsvp/guests", { signal: controller.signal });
+          if (!guestResponse.ok) throw new Error(await responseError(guestResponse, "Unable to load guests."));
+          const availableGuests: RsvpAdminGuest[] = await guestResponse.json();
+          if (!controller.signal.aborted) setGuests(availableGuests);
+        }
+      } catch (error) {
+        if (!controller.signal.aborted) setError(error instanceof Error ? error.message : "Unable to load your account.");
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    }
+    void loadAdminTools();
+    return () => controller.abort();
+  }, [version]);
+
+  return (
+    <Box sx={{ maxWidth: 560, width: "100%", pt: 6, pb: 8, mx: "auto", px: 3, textAlign: "left" }}>
+      {error && <Alert severity="error" sx={{ mb: 2 }} action={
+        <Button color="inherit" disabled={submitting || loading} onClick={() => { setError(""); setLoading(true); setVersion((value) => value + 1); }}>Retry</Button>
+      }>{error}</Alert>}
+      {user?.isAdmin && (
+        <Box sx={{ mb: 4, display: "flex", flexDirection: "column", gap: 2 }}>
+          <Typography component="h2" sx={{ fontFamily: SERIF, fontSize: "1.8rem" }}>Admin RSVP access</Typography>
+          <Autocomplete
+            options={guests}
+            value={target}
+            onChange={(_event, guest) => setTarget(guest)}
+            getOptionLabel={(guest) => `${guest.name} — ${guest.email} (#${guest.id})`}
+            isOptionEqualToValue={(option, value) => option.id === value.id}
+            disabled={submitting || loading}
+            loading={loading}
+            noOptionsText="No guests found"
+            renderInput={(params) => <TextField {...params} label="Impersonate a guest" helperText="Search by name or email to open their RSVP." sx={fieldSx} />}
+          />
+          {target && <Alert severity="warning">
+            You are responding as {target.name} ({target.email}). Saving updates their selected family members’ real RSVPs.
+          </Alert>}
+          {target && <Button sx={buttonSx} disabled={submitting} onClick={() => setTarget(null)}>Stop impersonating</Button>}
+        </Box>
+      )}
+      <RsvpForm key={target?.id ?? "self"} target={target} onSubmittingChange={setSubmitting} />
+    </Box>
+  );
+}
+
+function RsvpForm({ target, onSubmittingChange }: {
+  target: RsvpAdminGuest | null;
+  onSubmittingChange: (submitting: boolean) => void;
+}) {
+  const endpoint = target ? `/api/admin/rsvp/${target.id}` : "/api/rsvp";
   const [details, setDetails] = useState<RsvpDetails | null>(null);
   const [drafts, setDrafts] = useState<Record<number, RsvpGuest>>({});
   const [otherGuestIds, setOtherGuestIds] = useState<number[]>([]);
@@ -112,7 +183,7 @@ export default function Rsvp() {
     const controller = new AbortController();
     async function loadInvitation() {
       try {
-        const response = await fetch("/api/rsvp", { signal: controller.signal });
+        const response = await fetch(endpoint, { signal: controller.signal });
         if (!response.ok) {
           throw new Error(await responseError(response, "Unable to load your invitation. Please sign in again or try later."));
         }
@@ -129,7 +200,7 @@ export default function Rsvp() {
     }
     void loadInvitation();
     return () => controller.abort();
-  }, [loadVersion]);
+  }, [loadVersion, endpoint]);
 
   function updateGuest(id: number, changes: Partial<RsvpGuest>) {
     setDrafts((previous) => ({ ...previous, [id]: { ...previous[id], ...changes } }));
@@ -158,9 +229,10 @@ export default function Rsvp() {
       });
     }
     setSubmitting(true);
+    onSubmittingChange(true);
     try {
       const submission: RsvpSubmission = { guests };
-      const response = await fetch("/api/rsvp", {
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(submission),
@@ -173,6 +245,7 @@ export default function Rsvp() {
       setSubmitError(error instanceof Error ? error.message : "We couldn't save your RSVP. Please try again.");
     } finally {
       setSubmitting(false);
+      onSubmittingChange(false);
     }
   }
 
@@ -180,7 +253,7 @@ export default function Rsvp() {
   const selectedGuests = details ? [details.guestId, ...otherGuestIds].map((id) => drafts[id]) : [];
 
   return (
-    <Box sx={{ maxWidth: 560, width: "100%", pt: 6, pb: 8, mx: "auto", px: 3, textAlign: "left" }}>
+    <Box>
       <Typography component="h1" sx={{ color: IVORY, fontFamily: SERIF, fontWeight: 300, mb: 3, textAlign: "center", fontSize: { xs: "2.25rem", md: "2.75rem" } }}>
         {saved ? "Thank you!" : "RSVP"}
       </Typography>
@@ -188,7 +261,7 @@ export default function Rsvp() {
       {saved ? (
         <Box sx={{ textAlign: "center" }}>
           <Typography role="status" sx={{ fontFamily: SANS, mb: 3 }}>
-            Your RSVP has been saved for {selectedGuests.map((guest) => guest.name).join(", ")}. Thank you for letting us know!
+            {target ? "The RSVP" : "Your RSVP"} has been saved for {selectedGuests.map((guest) => guest.name).join(", ")}. Thank you for letting us know!
           </Typography>
           <Button onClick={() => setSaved(false)} sx={buttonSx}>Edit responses</Button>
         </Box>
@@ -208,7 +281,7 @@ export default function Rsvp() {
             Let us know which celebrations you can join. You can also respond for other members of your family below.
           </Typography>
           <TextField
-            label="Your name"
+            label={target ? "Guest name" : "Your name"}
             value={details.identity.name || drafts[details.guestId].name}
             slotProps={{ input: { readOnly: true }, inputLabel: { shrink: true } }}
             fullWidth
@@ -255,7 +328,7 @@ export default function Rsvp() {
           {selectedGuests.map((guest) => (
             <Box key={guest.id} component="fieldset" sx={{ m: 0, p: { xs: 2, sm: 3 }, minWidth: 0, display: "flex", flexDirection: "column", gap: 2.5, border: "1px solid rgba(245,239,224,0.4)" }}>
               <Typography component="legend" sx={{ px: 1, fontFamily: SERIF, fontSize: "1.8rem" }}>
-                {guest.name}{guest.id === details.guestId ? " (you)" : ""}
+                {guest.name}{guest.id === details.guestId ? target ? " (impersonating)" : " (you)" : ""}
               </Typography>
               <AttendanceQuestion id={`wedding-${guest.id}`} label="Will you attend the wedding?" value={guest.attending} onChange={(attending) => updateGuest(guest.id, { attending })} disabled={submitting} />
               {details.invitations.teaCeremony && (

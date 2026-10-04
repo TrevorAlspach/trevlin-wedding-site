@@ -335,13 +335,13 @@ test("returns the signed-in RSVP identity only to allowed guests without caching
       headers: authHeaders("GUEST@example.com", "email", "Wedding Guest"),
     });
     assert.equal(response.status, 200);
-    assert.deepEqual(await response.json(), { email: "guest@example.com", name: "Wedding Guest" });
+    assert.deepEqual(await response.json(), { email: "guest@example.com", name: "Wedding Guest", isAdmin: false });
     assert.match(response.headers.get("cache-control") ?? "", /no-store/);
 
     const missingName = await fetch(`${testApp.baseUrl}/api/me`, {
       headers: authHeaders("guest@example.com"),
     });
-    assert.deepEqual(await missingName.json(), { email: "guest@example.com", name: null });
+    assert.deepEqual(await missingName.json(), { email: "guest@example.com", name: null, isAdmin: false });
 
     const anonymous = await fetch(`${testApp.baseUrl}/api/me`);
     assert.equal(anonymous.status, 401);

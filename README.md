@@ -247,6 +247,47 @@ It adds nullable response fields without changing existing family invitation
 flags or guessing historical responses. Reverting it deletes the added event
 responses, notes, and submission timestamps; the existing wedding `rsvp` remains.
 
+### Admin RSVP impersonation
+
+Set `ADMIN_EMAIL` to your exact Google/Microsoft sign-in email. Only that account
+can use admin RSVP access; matching ignores case and surrounding whitespace.
+Your email must also be in `ALLOWED_EMAILS`. An empty or unset `ADMIN_EMAIL`
+disables admin access, and a malformed address or list of addresses prevents
+startup. This setting stays on the server and is never sent to the browser.
+
+Before deploying this change, create a Container App secret under
+**Security → Secrets → Add**, using the **Container Apps Secret** type:
+
+| Container App secret | Value | Runtime environment variable |
+| --- | --- | --- |
+| `admin-email` | Your own SSO email, such as `you@example.com` | `ADMIN_EMAIL` |
+
+The deploy workflow maps `ADMIN_EMAIL=secretref:admin-email`. Create this secret
+directly in Azure; the workflow does not create or overwrite it, and no GitHub
+secret is needed. Deploy a new revision after creating it. When changing its
+value later, restart the active revision or deploy a new one to apply the change.
+See [Azure's secret reference documentation](https://learn.microsoft.com/en-us/azure/container-apps/manage-secrets).
+For local development, set `ADMIN_EMAIL` in your untracked `.env` file.
+
+On the RSVP page, the admin sees **Impersonate a guest**, searchable by name or
+email. Selecting a guest opens that person's real invitation and saved answers,
+with a visible impersonation notice. **Send RSVP** saves responses for the selected
+guest and any chosen family members. **Stop impersonating** returns to your own
+invitation. Switching guests discards unsaved edits, resets the form, and is
+disabled while saving. Impersonation stays on this RSVP page and resets when
+you leave or reload it; your signed-in account does not change.
+
+`GET /api/me` includes `isAdmin`. Admin-only endpoints are
+`GET /api/admin/rsvp/guests` (guest IDs, names, and emails) and
+`GET`/`POST /api/admin/rsvp/:guestId`. Each request independently checks the
+authenticated email against `ADMIN_EMAIL` after the site allowlist check.
+Guest IDs let admins select guests who share an email, including guests outside
+`ALLOWED_EMAILS`; the admin does not need an invitation of their own. The usual
+family membership, invitation, validation, and atomic-save rules still apply.
+Missing or inconsistent invitations still need to be corrected in the database.
+Successful admin saves log the administrator email and target guest ID without
+logging RSVP notes. No database migration is needed for admin access.
+
 ### Local setup and migrations
 
 Use Node 22.13+ on the Node 22 line (the Docker image uses Node 22). Copy

@@ -16,6 +16,7 @@ export class RsvpError extends Error {
 }
 
 export interface RsvpReader {
+  findGuestById(id: number): Promise<Guest | null>;
   findGuestsByEmail(email: string): Promise<Guest[]>;
   findFamily(familyId: string): Promise<Family | null>;
   findMembers(familyId: string): Promise<Guest[]>;
@@ -33,6 +34,9 @@ export interface RsvpStore {
 export interface RsvpService {
   load(email: string, name: string | null): Promise<RsvpDetails>;
   submit(email: string, body: unknown): Promise<void>;
+  // Callers must enforce administrator authorization before using these methods.
+  loadGuest(guestId: number): Promise<RsvpDetails>;
+  submitGuest(guestId: number, body: unknown): Promise<void>;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -71,10 +75,11 @@ export function parseRsvpSubmission(body: unknown): RsvpSubmission {
   return { guests };
 }
 
-// Both reads and writes resolve the household from the verified SSO email.
-// Client-supplied family IDs or email addresses never establish authorization.
-export async function loadRsvpFamily(reader: RsvpReader, email: string) {
-  const matches = await reader.findGuestsByEmail(email.trim().toLowerCase());
+// Normal requests use the verified SSO email. Only admin routes may supply an ID.
+export async function loadRsvpFamily(reader: RsvpReader, identity: string | number) {
+  const matches = typeof identity === "number"
+    ? [await reader.findGuestById(identity)].filter((guest): guest is Guest => guest !== null)
+    : await reader.findGuestsByEmail(identity.trim().toLowerCase());
   if (matches.length === 0) {
     throw new RsvpError(404, "We couldn't find an invitation for your sign-in email. Please contact us for help.");
   }
@@ -95,11 +100,11 @@ export async function loadRsvpFamily(reader: RsvpReader, email: string) {
 }
 
 export function createRsvpService(store: RsvpStore): RsvpService {
-  return {
-    load: (email, name) => store.transaction(async (reader) => {
-      const { guest, family, members } = await loadRsvpFamily(reader, email);
+  const load = (identity: string | number, name: string | null): Promise<RsvpDetails> =>
+    store.transaction(async (reader) => {
+      const { guest, family, members } = await loadRsvpFamily(reader, identity);
       return {
-        identity: { email, name },
+        identity: typeof identity === "number" ? { email: guest.email, name: guest.name } : { email: identity, name },
         guestId: guest.id,
         invitations: {
           teaCeremony: family.teaCeremonyInvited,
@@ -116,34 +121,39 @@ export function createRsvpService(store: RsvpStore): RsvpService {
           dietaryNotes: member.dietaryNotes ?? "",
         })),
       };
-    }),
-    async submit(email, body) {
-      const submission = parseRsvpSubmission(body);
-      await store.transaction(async (writer) => {
-        const { guest, family, members } = await loadRsvpFamily(writer, email);
-        const memberIds = new Set(members.map((member) => member.id));
-        if (!submission.guests.some((response) => response.guestId === guest.id)) {
-          throw new RsvpError(400, "Please include your own RSVP with your family's responses.");
+    });
+  async function submit(identity: string | number, body: unknown) {
+    const submission = parseRsvpSubmission(body);
+    await store.transaction(async (writer) => {
+      const { guest, family, members } = await loadRsvpFamily(writer, identity);
+      const memberIds = new Set(members.map((member) => member.id));
+      if (!submission.guests.some((response) => response.guestId === guest.id)) {
+        throw new RsvpError(400, "Please include your own RSVP with your family's responses.");
+      }
+      // Validate the entire submission before writing any individual response.
+      for (const response of submission.guests) {
+        if (!memberIds.has(response.guestId)) {
+          throw new RsvpError(403, "You can only RSVP for members of your family.");
         }
-        // Validate the entire submission before writing any individual response.
-        for (const response of submission.guests) {
-          if (!memberIds.has(response.guestId)) {
-            throw new RsvpError(403, "You can only RSVP for members of your family.");
+        for (const [invited, answer] of [
+          [family.teaCeremonyInvited, response.teaCeremonyRsvp],
+          [family.rehearsalDinnerInvited, response.rehearsalDinnerRsvp],
+        ]) {
+          if (invited ? typeof answer !== "boolean" : answer !== null) {
+            throw new RsvpError(400, "Please answer the events on your current invitation. Reload the page if it has changed.");
           }
-          for (const [invited, answer] of [
-            [family.teaCeremonyInvited, response.teaCeremonyRsvp],
-            [family.rehearsalDinnerInvited, response.rehearsalDinnerRsvp],
-          ]) {
-            if (invited ? typeof answer !== "boolean" : answer !== null) {
-              throw new RsvpError(400, "Please answer the events on your current invitation. Reload the page if it has changed.");
-            }
-          }
         }
-        const respondedAt = new Date();
-        for (const response of submission.guests) {
-          await writer.saveResponse(family.familyId, response, respondedAt);
-        }
-      });
-    },
+      }
+      const respondedAt = new Date();
+      for (const response of submission.guests) {
+        await writer.saveResponse(family.familyId, response, respondedAt);
+      }
+    });
+  }
+  return {
+    load,
+    submit,
+    loadGuest: (guestId) => load(guestId, null),
+    submitGuest: (guestId, body) => submit(guestId, body),
   };
 }

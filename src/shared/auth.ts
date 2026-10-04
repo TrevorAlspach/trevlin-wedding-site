@@ -5,6 +5,12 @@ export const PROVIDERS = {
 
 export type ProviderName = keyof typeof PROVIDERS;
 
+export type CurrentUser = {
+  email: string;
+  name: string | null;
+  isAdmin: boolean;
+};
+
 export type SessionResponse = {
   status: "anonymous" | "invalid" | "allowed" | "denied";
   email: string | null;

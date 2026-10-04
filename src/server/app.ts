@@ -10,6 +10,7 @@ import {
   getPrincipalEmail,
   getPrincipalName,
   parseAllowedEmails,
+  parseAdminEmail,
   parseProviders,
 } from "./auth.js";
 import {
@@ -82,6 +83,7 @@ const requestErrorHandler: ErrorRequestHandler = (error, _request, response, nex
 
 export type CreateAppOptions = {
   allowedEmails?: Set<string>;
+  adminEmail?: string | null;
   providers?: ProviderName[];
   distDir?: string;
   guestRepository?: Pick<Repository<Guest>, "find">;
@@ -101,6 +103,7 @@ export type CreateAppOptions = {
 
 export function createApp({
   allowedEmails = parseAllowedEmails(process.env.ALLOWED_EMAILS),
+  adminEmail = parseAdminEmail(process.env.ADMIN_EMAIL),
   providers = parseProviders(process.env.AUTH_PROVIDERS),
   distDir = DEFAULT_DIST_DIR,
   guestRepository,
@@ -110,6 +113,7 @@ export function createApp({
   accessRequestSender,
   accessRequestRateLimit,
 }: CreateAppOptions = {}) {
+  const configuredAdmin = parseAdminEmail(adminEmail ?? "");
   const app = express();
   const indexPath = path.join(distDir, "index.html");
   const authDistDir = path.join(distDir, "auth");
@@ -280,6 +284,7 @@ export function createApp({
 
     response.locals.authenticatedEmail = email;
     response.locals.authenticatedName = getPrincipalName(principal);
+    response.locals.isAdmin = email === configuredAdmin;
     response.setHeader("Cache-Control", "private, no-store");
     return next();
   });
@@ -288,7 +293,38 @@ export function createApp({
     response.json({
       email: response.locals.authenticatedEmail,
       name: response.locals.authenticatedName,
+      isAdmin: response.locals.isAdmin,
     });
+  });
+
+  app.use("/api/admin", (_request, response, next) => {
+    if (!response.locals.isAdmin) {
+      response.status(403).json({ error: "Administrator access is required." });
+      return;
+    }
+    next();
+  });
+
+  app.get("/api/admin/rsvp/guests", async (_request, response) => {
+    if (!guestRepository) {
+      response.status(503).json({ error: "Guest information is currently unavailable." });
+      return;
+    }
+    const guests = await guestRepository.find({
+      select: { id: true, name: true, email: true },
+      order: { name: "ASC", id: "ASC" },
+    });
+    response.json(guests);
+  });
+
+  app.use("/api/admin/rsvp/:guestId", (request, response, next) => {
+    const value = request.params.guestId;
+    if (!/^[1-9]\d*$/.test(value) || !Number.isSafeInteger(Number(value))) {
+      response.status(400).json({ error: "Please select a valid guest." });
+      return;
+    }
+    response.locals.rsvpGuestId = Number(value);
+    next();
   });
 
   app.get("/api/guests", async (_request, response) => {
@@ -305,23 +341,25 @@ export function createApp({
     response.json(guests);
   });
 
-  app.get("/api/rsvp", async (_request, response) => {
+  app.get(["/api/rsvp", "/api/admin/rsvp/:guestId"], async (_request, response) => {
     if (!rsvpService) {
       response.status(503).json({ error: "RSVP is currently unavailable. Please try again later." });
       return;
     }
     try {
-      response.json(await rsvpService.load(
-        response.locals.authenticatedEmail as string,
-        response.locals.authenticatedName as string | null,
-      ));
+      response.json(response.locals.rsvpGuestId
+        ? await rsvpService.loadGuest(response.locals.rsvpGuestId as number)
+        : await rsvpService.load(
+          response.locals.authenticatedEmail as string,
+          response.locals.authenticatedName as string | null,
+        ));
     } catch (error) {
       if (!(error instanceof RsvpError)) throw error;
       response.status(error.status).json({ error: error.message });
     }
   });
 
-  app.post("/api/rsvp", express.json({ limit: "256kb", strict: true }), async (request, response) => {
+  app.post(["/api/rsvp", "/api/admin/rsvp/:guestId"], express.json({ limit: "256kb", strict: true }), async (request, response) => {
     if (!rsvpService) {
       response.status(503).json({ error: "RSVP is currently unavailable. Please try again later." });
       return;
@@ -331,7 +369,15 @@ export function createApp({
       return;
     }
     try {
-      await rsvpService.submit(response.locals.authenticatedEmail as string, request.body);
+      if (response.locals.rsvpGuestId) {
+        await rsvpService.submitGuest(response.locals.rsvpGuestId as number, request.body);
+        console.info("Admin RSVP saved", {
+          actorEmail: response.locals.authenticatedEmail,
+          targetGuestId: response.locals.rsvpGuestId,
+        });
+      } else {
+        await rsvpService.submit(response.locals.authenticatedEmail as string, request.body);
+      }
       response.json({ status: "saved" });
     } catch (error) {
       if (!(error instanceof RsvpError)) throw error;

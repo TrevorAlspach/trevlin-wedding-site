@@ -2,7 +2,7 @@ import path from "node:path";
 import { once } from "node:events";
 import { pathToFileURL } from "node:url";
 import { createApp } from "./app.js";
-import { parseAllowedEmails, parseProviders } from "./auth.js";
+import { parseAdminEmail, parseAllowedEmails, parseProviders } from "./auth.js";
 import database from "./db/data-source.js";
 import { guestRepository } from "./db/guest-repository.js";
 import { createRsvpStore } from "./db/rsvp-repository.js";
@@ -10,6 +10,7 @@ import { createRsvpService } from "./rsvp.js";
 
 export async function startServer() {
   const allowedEmails = parseAllowedEmails(process.env.ALLOWED_EMAILS);
+  const adminEmail = parseAdminEmail(process.env.ADMIN_EMAIL);
   const providers = parseProviders(process.env.AUTH_PROVIDERS);
   const port = Number.parseInt(process.env.PORT || "80", 10);
 
@@ -25,7 +26,7 @@ export async function startServer() {
   console.log("Azure SQL connection established");
 
   const rsvpService = createRsvpService(createRsvpStore(database));
-  const server = createApp({ allowedEmails, providers, guestRepository, rsvpService }).listen(port, "0.0.0.0");
+  const server = createApp({ allowedEmails, adminEmail, providers, guestRepository, rsvpService }).listen(port, "0.0.0.0");
   try {
     await once(server, "listening");
   } catch (error) {

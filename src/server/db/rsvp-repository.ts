@@ -6,6 +6,7 @@ import { RsvpError, type RsvpReader, type RsvpStore } from "../rsvp.js";
 
 export function createRsvpReader(manager: EntityManager): RsvpReader {
   return {
+    findGuestById: (id) => manager.getRepository(GuestSchema).findOneBy({ id }),
     findGuestsByEmail: (email) => manager.getRepository(GuestSchema).find({
       where: {
         email: Raw((column) => `LOWER(LTRIM(RTRIM(${column}))) = :email`, { email }),

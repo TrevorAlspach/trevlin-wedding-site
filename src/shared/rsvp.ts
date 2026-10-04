@@ -2,6 +2,12 @@ export const MAX_SONG_REQUEST_LENGTH = 1000;
 export const MAX_DIETARY_NOTES_LENGTH = 2000;
 export const MAX_RSVP_GUESTS = 100;
 
+export interface RsvpAdminGuest {
+  id: number;
+  name: string;
+  email: string;
+}
+
 export interface RsvpGuest {
   id: number;
   name: string;

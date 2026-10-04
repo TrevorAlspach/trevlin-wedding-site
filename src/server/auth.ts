@@ -73,6 +73,15 @@ export function parseAllowedEmails(value = ""): Set<string> {
   return emails;
 }
 
+export function parseAdminEmail(value = ""): string | null {
+  const email = normalizeEmail(value);
+  if (!email) return null;
+  if (!looksLikeEmail(email) || /[,;]/.test(email)) {
+    throw new Error("ADMIN_EMAIL must contain exactly one email address");
+  }
+  return email;
+}
+
 export function parseProviders(value = "google,aad"): ProviderName[] {
   const selected: ProviderName[] = [];
 
