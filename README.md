@@ -96,8 +96,7 @@ Schema synchronization and automatic migrations are disabled.
 | `email` | `email` | `nvarchar(320)` | Required; shared email addresses are allowed |
 | `address` | `address` | `nvarchar(1000)` | Nullable |
 | `rsvp` | `rsvp` | `bit` | `false` |
-| `teaCeremonyInvited` | `tea_ceremony_invited` | `bit` | `false` |
-| `rehearsalDinnerInvited` | `rehearsal_dinner_invited` | `bit` | `false` |
+| `family` | `family` | `varchar(1000)` | Nullable foreign key to `families.family_id` |
 
 The boolean RSVP does not distinguish an unanswered invitation from a decline.
 This is database boilerplate: existing RSVP screens and `ALLOWED_EMAILS`
@@ -105,9 +104,9 @@ authorization are not yet connected to the guests table.
 
 `GET /api/guests` returns all guests as a JSON array ordered by `id`, or `[]` when
 the table is empty. Each object includes `id`, `name`, `email`, `address`, `rsvp`,
-`teaCeremonyInvited`, and `rehearsalDinnerInvited`. All authenticated users in
-`ALLOWED_EMAILS` can access this endpoint, including the address and invitation
-fields. Anonymous requests receive `401`; accounts outside the allowlist receive
+and `family`. Family invitation flags are stored separately and are not included
+in this endpoint. All authenticated users in `ALLOWED_EMAILS` can access this
+endpoint, including the address field. Anonymous requests receive `401`; accounts outside the allowlist receive
 `403`. Responses are not cached, and database failures return a generic `500`
 JSON error.
 
@@ -156,6 +155,42 @@ await database.transaction(async (manager) => {
 });
 ```
 
+### Families and membership
+
+`src/server/db/family.ts` defines `dbo.families`:
+
+| TypeScript property | SQL column | SQL type | Default / requirement |
+| --- | --- | --- | --- |
+| `familyId` | `family_id` | `varchar(1000)` | Required primary key; supplied by the caller |
+| `teaCeremonyInvited` | `tea_ceremony_invited` | `bit` | `false` |
+| `rehearsalDinnerInvited` | `rehearsal_dinner_invited` | `bit` | `false` |
+
+The requested columns are `varchar(1000)`, but actual family IDs must fit Azure
+SQL's [900-byte primary/foreign key limit](https://learn.microsoft.com/en-us/sql/relational-databases/tables/primary-and-foreign-key-constraints?view=sql-server-ver17).
+Use short, stable identifiers for families.
+
+`src/server/db/family-guest.ts` defines `dbo.family_guests`, with `family_id`
+(`varchar(1000)`, foreign key to `families.family_id`) and `guest_id` (`int`,
+primary key and foreign key to `guests.id`). Each guest can have one membership;
+multiple guests can belong to the same family. An index on `family_id` supports
+looking up all members for a future RSVP form. Deleting a guest deletes its
+membership; deleting a referenced family is blocked.
+
+When assigning or moving a guest, update `guests.family` and the corresponding
+`family_guests` row in the same transaction. The two foreign keys check that
+families exist; they do not synchronize these two representations of membership.
+A guest may have `family = NULL` while awaiting assignment and should then have
+no membership row. Use `manager.getRepository(FamilySchema)` and
+`manager.getRepository(FamilyGuestSchema)` inside a transaction to manage these
+entities. The RSVP UI is not yet connected to them.
+
+The `CreateFamilies` migration preserves existing invitations by creating one
+family named `guest-<id>` per existing guest and inserting its membership row
+before removing the two invitation columns from `guests`. These placeholder
+families can later be consolidated into actual households. Reverting copies the
+current family invitation flags back to each guest, then removes family and
+membership data. Unassigned guests receive `false` for both flags on revert.
+
 ### Local setup and migrations
 
 Use Node 22.13+ on the Node 22 line (the Docker image uses Node 22). Copy
@@ -173,7 +208,8 @@ npm run db:migrations:show
 npm run db:migrate
 ```
 
-`db:migrate` creates the guests table and records the migration in
+`db:migrate` applies pending migrations (including the family schema and
+invitation backfill) and records them in
 `dbo.typeorm_migrations`. Run it using a developer/deployment identity with DDL
 permissions and access to the migration history table. The app's runtime identity
 only needs the relevant data permissions; the deploy workflow does not run

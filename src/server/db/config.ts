@@ -2,6 +2,8 @@ import "reflect-metadata";
 import { fileURLToPath } from "node:url";
 import type { DataSourceOptions } from "typeorm";
 import { GuestSchema } from "./guest.js";
+import { FamilySchema } from "./family.js";
+import { FamilyGuestSchema } from "./family-guest.js";
 
 export function databaseOptions(env: NodeJS.ProcessEnv = process.env) {
   const host = env.AZURE_SQL_SERVER?.trim();
@@ -30,7 +32,7 @@ export function databaseOptions(env: NodeJS.ProcessEnv = process.env) {
     pool: { min: 0, max: 5, idleTimeoutMillis: 30_000 },
     connectionTimeout: 30_000,
     requestTimeout: 30_000,
-    entities: [GuestSchema],
+    entities: [GuestSchema, FamilySchema, FamilyGuestSchema],
     migrations: [fileURLToPath(new URL("./migrations/*.js", import.meta.url))],
     migrationsTableName: "typeorm_migrations",
     synchronize: false,

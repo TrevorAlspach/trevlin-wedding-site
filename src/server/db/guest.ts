@@ -6,8 +6,7 @@ export interface Guest {
   email: string;
   address: string | null;
   rsvp: boolean;
-  teaCeremonyInvited: boolean;
-  rehearsalDinnerInvited: boolean;
+  family: string | null;
 }
 
 export const GuestSchema = new EntitySchema<Guest>({
@@ -20,15 +19,12 @@ export const GuestSchema = new EntitySchema<Guest>({
     email: { type: "nvarchar", length: 320 },
     address: { type: "nvarchar", length: 1000, nullable: true },
     rsvp: { type: Boolean, default: false },
-    teaCeremonyInvited: {
-      name: "tea_ceremony_invited",
-      type: Boolean,
-      default: false,
-    },
-    rehearsalDinnerInvited: {
-      name: "rehearsal_dinner_invited",
-      type: Boolean,
-      default: false,
-    },
+    family: { type: "varchar", length: 1000, nullable: true },
   },
+  foreignKeys: [{
+    name: "FK_guests_family",
+    target: "Family",
+    columnNames: ["family"],
+    referencedColumnNames: ["familyId"],
+  }],
 });
