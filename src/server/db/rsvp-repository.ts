@@ -28,6 +28,20 @@ export function createRsvpStore(database: DataSource): RsvpStore {
   return {
     transaction: (work) => database.transaction("SERIALIZABLE", async (manager) => work({
       ...createRsvpReader(manager),
+      findGuestByAdditionId: (rsvpAdditionId) => manager.getRepository(GuestSchema).findOneBy({ rsvpAdditionId }),
+      async saveAddedGuest(familyId, addition, guestId) {
+        const guest = await manager.getRepository(GuestSchema).save({
+          ...(guestId === undefined ? {} : { id: guestId }),
+          name: addition.name,
+          email: addition.email,
+          family: familyId,
+          rsvpAdditionId: addition.additionId,
+        });
+        if (guestId === undefined) {
+          await manager.getRepository(FamilyGuestSchema).insert({ familyId, guestId: guest.id });
+        }
+        return guest.id;
+      },
       async saveResponse(familyId, response, respondedAt) {
         const result = await manager.getRepository(GuestSchema).update(
           { id: response.guestId, family: familyId },

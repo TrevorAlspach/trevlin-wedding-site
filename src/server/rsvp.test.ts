@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import type { AddressInfo } from "node:net";
@@ -15,7 +16,7 @@ import {
   RsvpError,
   type RsvpStore,
 } from "./rsvp.js";
-import type { RsvpAdminGuest, RsvpDetails, RsvpGuestResponse } from "../shared/rsvp.js";
+import type { RsvpAdditionalGuest, RsvpAdminGuest, RsvpDetails, RsvpGuestResponse } from "../shared/rsvp.js";
 import type { CurrentUser } from "../shared/auth.js";
 
 function makeGuest(id: number, email: string, family = "family-a"): Guest {
@@ -47,11 +48,23 @@ function fixture() {
   const store: RsvpStore = {
     async transaction(work) {
       const pending = structuredClone(state.guests);
+      const memberships = new Map(state.memberships);
       const result = await work({
         findGuestById: async (id) => pending.find((guest) => guest.id === id) ?? null,
         findGuestsByEmail: async (email) => pending.filter((guest) => guest.email.trim().toLowerCase() === email),
         findFamily: async (id) => state.families.find((family) => family.familyId === id) ?? null,
-        findMembers: async (id) => pending.filter((guest) => state.memberships.get(guest.id) === id),
+        findMembers: async (id) => pending.filter((guest) => memberships.get(guest.id) === id),
+        findGuestByAdditionId: async (additionId) => pending.find((guest) => guest.rsvpAdditionId === additionId) ?? null,
+        async saveAddedGuest(familyId, addition, guestId) {
+          if (guestId !== undefined) {
+            Object.assign(pending.find((guest) => guest.id === guestId)!, { name: addition.name, email: addition.email });
+            return guestId;
+          }
+          const id = Math.max(...pending.map((guest) => guest.id)) + 1;
+          pending.push({ ...makeGuest(id, addition.email, familyId), name: addition.name, rsvpAdditionId: addition.additionId });
+          memberships.set(id, familyId);
+          return id;
+        },
         async saveResponse(familyId, response, respondedAt) {
           state.writes++;
           if (response.guestId === state.failGuestId) throw new Error("Simulated database failure");
@@ -65,6 +78,7 @@ function fixture() {
         },
       });
       state.guests = pending;
+      state.memberships = memberships;
       return result;
     },
   };
@@ -360,4 +374,93 @@ test("RSVP HTTP endpoints enforce SSO and family authorization and persist a rel
   } finally {
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
+});
+
+function addition(changes: Partial<RsvpAdditionalGuest> = {}): RsvpAdditionalGuest {
+  return {
+    additionId: randomUUID(), name: "New Guest", email: "", attending: true,
+    teaCeremonyRsvp: false, rehearsalDinnerRsvp: null, songRequests: "A song",
+    dietaryNotes: "Vegetarian", ...changes,
+  };
+}
+
+test("additional guests join the authenticated family, reload, and can be edited without duplication", async () => {
+  const { service, state } = fixture();
+  const first = addition({ name: "  First Guest  ", email: " NEW@EXAMPLE.COM " });
+  const second = addition({ name: "Second Guest", attending: false });
+  const payload = { guests: [answer(1)], additionalGuests: [first, second] };
+  const result = await service.submit("guest@example.com", payload);
+  assert.deepEqual(result.addedGuests.map((guest) => guest.guestId), [4, 5]);
+  assert.deepEqual(state.memberships.get(4), "family-a");
+  assert.equal(state.guests[3]!.family, "family-a");
+  assert.equal(state.guests[3]!.name, "First Guest");
+  assert.equal(state.guests[3]!.email, "new@example.com");
+  assert.equal(state.guests[4]!.email, "");
+  assert.equal(state.guests[3]!.dietaryNotes, "Vegetarian");
+  assert.equal(state.guests[4]!.rsvp, false);
+  assert.deepEqual(state.guests[0]!.rsvpRespondedAt, state.guests[3]!.rsvpRespondedAt);
+  assert.equal(state.guests[1]!.rsvpRespondedAt, null);
+  assert.deepEqual((await service.load("guest@example.com", null)).guests.map((guest) => guest.id), [1, 2, 4, 5]);
+  assert.equal((await service.load("new@example.com", null)).guestId, 4);
+  assert.deepEqual(await service.submit("guest@example.com", payload), result);
+  assert.equal(state.guests.length, 5);
+  await service.submit("guest@example.com", { guests: [answer(1), answer(4, { dietaryNotes: "Updated" })] });
+  assert.equal(state.guests[3]!.dietaryNotes, "Updated");
+  assert.equal(state.guests.length, 5);
+});
+
+test("additional guests cannot bypass identity, family, or event validation", async () => {
+  const { service, state } = fixture();
+  for (const body of [
+    { guests: [answer(2)], additionalGuests: [addition()] },
+    { guests: [answer(1)], additionalGuests: [addition({ teaCeremonyRsvp: null })] },
+    { guests: [answer(1)], additionalGuests: [addition({ rehearsalDinnerRsvp: true })] },
+  ]) await assert.rejects(service.submit("guest@example.com", body), status(400));
+  assert.equal(state.guests.length, 3);
+  assert.equal(state.writes, 0);
+  const added = addition();
+  await service.submit("guest@example.com", { guests: [answer(1)], additionalGuests: [added] });
+  await assert.rejects(service.submitGuest(3, {
+    guests: [answer(3, { teaCeremonyRsvp: null, rehearsalDinnerRsvp: true })],
+    additionalGuests: [{ ...added, teaCeremonyRsvp: null, rehearsalDinnerRsvp: true }],
+  }), status(403));
+});
+
+test("additional guests and memberships roll back together if a response or email validation fails", async () => {
+  const { service, state } = fixture();
+  const before = structuredClone(state.guests);
+  const memberships = new Map(state.memberships);
+  state.failGuestId = 5;
+  await assert.rejects(service.submit("guest@example.com", {
+    guests: [answer(1)], additionalGuests: [addition(), addition()],
+  }), /database failure/);
+  assert.deepEqual(state.guests, before);
+  assert.deepEqual(state.memberships, memberships);
+  state.failGuestId = 0;
+  for (const email of ["guest@example.com", "other@example.com", " NEW@EXAMPLE.COM "]) {
+    await assert.rejects(service.submit("guest@example.com", {
+      guests: [answer(1)], additionalGuests: [addition({ email: "new@example.com" }), addition({ email })],
+    }), status(409));
+    assert.deepEqual(state.guests, before);
+    assert.deepEqual(state.memberships, memberships);
+  }
+});
+
+test("additional guest parsing rejects invalid fields, names, emails and repeated addition IDs", () => {
+  const guest = addition();
+  for (const additionalGuests of [
+    null, {}, [null], [guest, guest], [{ ...guest, name: "  " }],
+    [{ ...guest, name: "a".repeat(201) }], [{ ...guest, email: "invalid" }],
+    [{ ...guest, email: "a".repeat(321) }], [{ ...guest, additionId: "bad-id" }],
+    [{ ...guest, guestId: 3 }], [{ ...guest, familyId: "family-b" }],
+    [{ ...guest, attending: "yes" }], [{ ...guest, dietaryNotes: "a".repeat(2001) }],
+  ]) assert.throws(() => parseRsvpSubmission({ guests: [answer(1)], additionalGuests }), status(400));
+});
+
+test("families can add more than one plus-one without a fixed guest-count limit", async () => {
+  const { service, state } = fixture();
+  const additionalGuests = Array.from({ length: 101 }, (_, index) => addition({ name: `Additional ${index}` }));
+  await service.submitGuest(1, { guests: [answer(1)], additionalGuests });
+  assert.equal(state.guests.length, 104);
+  assert.equal((await service.loadGuest(1)).guests.length, 103);
 });

@@ -218,6 +218,14 @@ and for each invited event. Hidden, uninvited events carry `null` responses;
 answers for different events are independent. Saved responses load on returning
 to the page, and unselected members are not changed by a submission.
 
+**Add another guest** adds a removable section with a required name, optional
+email, and the same attendance and notes fields. There is no fixed guest-count
+limit (the API retains its 256 KB request-size limit). New guests inherit the
+family's event invitations. Saving creates both the guest record and family
+membership in the same transaction; editing saved responses reuses those records.
+Optional emails must not already belong to another guest; leave an email blank
+when it is shared. Adding a guest does not change the site's sign-in allowlist.
+
 `POST /api/rsvp` accepts JSON with this shape:
 
 ```json
@@ -233,6 +241,14 @@ to the page, and unselected members are not changed by a submission.
 }
 ```
 
+An optional `additionalGuests` array accepts the same attendance and notes fields,
+with `additionId` (a client-generated UUID v4), `name` (up to 200 characters), and
+`email` (up to 320 characters; empty when omitted) instead of `guestId`.
+Successful saves return `{ "status": "saved", "addedGuests": [...] }`, where each
+entry maps an `additionId` to its saved `guestId`. Keep addition IDs stable across
+retries to avoid duplicate records. Family assignment always comes from the
+authenticated guest (or the authorized admin's selected guest).
+
 The example assumes a tea ceremony invitation but no rehearsal dinner invitation.
 Submissions must include the signed-in guest, contain no duplicate IDs, and only
 include members of that family. The server rechecks current invitation flags and
@@ -242,7 +258,12 @@ failures roll back the entire submission. Notes are limited to 1,000 characters
 for songs and 2,000 for dietary restrictions. Both endpoints require an allowed
 authenticated account and return responses with `Cache-Control: private, no-store`.
 
-Apply `AddGuestRsvpResponses` before deploying this version of the application.
+Apply `AddGuestRsvpResponses` and `AddRsvpGuestAdditions` before deploying this
+version (`npm run build:server && npm run db:migrate`). The latter adds a nullable
+addition ID with a unique filtered index for safe retries; existing guests are
+unchanged. Reverting that migration removes retry IDs but preserves added guests.
+
+`AddGuestRsvpResponses` adds the response fields.
 It adds nullable response fields without changing existing family invitation
 flags or guessing historical responses. Reverting it deletes the added event
 responses, notes, and submission timestamps; the existing wedding `rsvp` remains.

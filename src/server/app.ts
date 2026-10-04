@@ -369,16 +369,17 @@ export function createApp({
       return;
     }
     try {
+      let result;
       if (response.locals.rsvpGuestId) {
-        await rsvpService.submitGuest(response.locals.rsvpGuestId as number, request.body);
+        result = await rsvpService.submitGuest(response.locals.rsvpGuestId as number, request.body);
         console.info("Admin RSVP saved", {
           actorEmail: response.locals.authenticatedEmail,
           targetGuestId: response.locals.rsvpGuestId,
         });
       } else {
-        await rsvpService.submit(response.locals.authenticatedEmail as string, request.body);
+        result = await rsvpService.submit(response.locals.authenticatedEmail as string, request.body);
       }
-      response.json({ status: "saved" });
+      response.json({ status: "saved", ...result });
     } catch (error) {
       if (!(error instanceof RsvpError)) throw error;
       response.status(error.status).json({ error: error.message });

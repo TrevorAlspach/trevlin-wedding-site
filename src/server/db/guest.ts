@@ -12,6 +12,7 @@ export interface Guest {
   rsvpRespondedAt: Date | null;
   songRequests: string | null;
   dietaryNotes: string | null;
+  rsvpAdditionId?: string | null;
 }
 
 export const GuestSchema = new EntitySchema<Guest>({
@@ -30,7 +31,9 @@ export const GuestSchema = new EntitySchema<Guest>({
     rsvpRespondedAt: { name: "rsvp_responded_at", type: "datetime2", nullable: true },
     songRequests: { name: "song_requests", type: "nvarchar", length: 1000, nullable: true },
     dietaryNotes: { name: "dietary_notes", type: "nvarchar", length: 2000, nullable: true },
+    rsvpAdditionId: { name: "rsvp_addition_id", type: "uniqueidentifier", nullable: true },
   },
+  indices: [{ name: "IDX_guests_rsvp_addition_id", columns: ["rsvpAdditionId"], unique: true, where: "[rsvp_addition_id] IS NOT NULL" }],
   foreignKeys: [{
     name: "FK_guests_family",
     target: "Family",

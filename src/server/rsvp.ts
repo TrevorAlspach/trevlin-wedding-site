@@ -2,7 +2,10 @@ import type { Family } from "./db/family.js";
 import type { Guest } from "./db/guest.js";
 import {
   MAX_DIETARY_NOTES_LENGTH,
-  MAX_RSVP_GUESTS,
+  MAX_GUEST_NAME_LENGTH,
+  MAX_GUEST_EMAIL_LENGTH,
+  type RsvpAdditionalGuest,
+  type RsvpSaveResult,
   MAX_SONG_REQUEST_LENGTH,
   type RsvpDetails,
   type RsvpGuestResponse,
@@ -23,6 +26,8 @@ export interface RsvpReader {
 }
 
 export interface RsvpWriter extends RsvpReader {
+  findGuestByAdditionId(additionId: string): Promise<Guest | null>;
+  saveAddedGuest(familyId: string, guest: RsvpAdditionalGuest, guestId?: number): Promise<number>;
   saveResponse(familyId: string, response: RsvpGuestResponse, respondedAt: Date): Promise<void>;
 }
 
@@ -33,19 +38,34 @@ export interface RsvpStore {
 
 export interface RsvpService {
   load(email: string, name: string | null): Promise<RsvpDetails>;
-  submit(email: string, body: unknown): Promise<void>;
+  submit(email: string, body: unknown): Promise<RsvpSaveResult>;
   // Callers must enforce administrator authorization before using these methods.
   loadGuest(guestId: number): Promise<RsvpDetails>;
-  submitGuest(guestId: number, body: unknown): Promise<void>;
+  submitGuest(guestId: number, body: unknown): Promise<RsvpSaveResult>;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function parseAnswers(value: Record<string, unknown>): Omit<RsvpGuestResponse, "guestId"> {
+  if (typeof value.attending !== "boolean" ||
+      !(value.teaCeremonyRsvp === null || typeof value.teaCeremonyRsvp === "boolean") ||
+      !(value.rehearsalDinnerRsvp === null || typeof value.rehearsalDinnerRsvp === "boolean") ||
+      typeof value.songRequests !== "string" || value.songRequests.length > MAX_SONG_REQUEST_LENGTH ||
+      typeof value.dietaryNotes !== "string" || value.dietaryNotes.length > MAX_DIETARY_NOTES_LENGTH) {
+    throw new RsvpError(400, "Please check the attendance answers and notes for each guest.");
+  }
+  return {
+    attending: value.attending, teaCeremonyRsvp: value.teaCeremonyRsvp,
+    rehearsalDinnerRsvp: value.rehearsalDinnerRsvp,
+    songRequests: value.songRequests.trim(), dietaryNotes: value.dietaryNotes.trim(),
+  };
+}
+
 export function parseRsvpSubmission(body: unknown): RsvpSubmission {
-  if (!isRecord(body) || Object.keys(body).some((key) => key !== "guests") ||
-      !Array.isArray(body.guests) || body.guests.length < 1 || body.guests.length > MAX_RSVP_GUESTS) {
+  if (!isRecord(body) || Object.keys(body).some((key) => key !== "guests" && key !== "additionalGuests") ||
+      !Array.isArray(body.guests) || body.guests.length < 1) {
     throw new RsvpError(400, "Please provide responses for the selected guests.");
   }
   const ids = new Set<number>();
@@ -55,24 +75,32 @@ export function parseRsvpSubmission(body: unknown): RsvpSubmission {
   const guests = body.guests.map((value): RsvpGuestResponse => {
     if (!isRecord(value) || Object.keys(value).some((key) => !allowedKeys.has(key)) ||
         typeof value.guestId !== "number" || !Number.isSafeInteger(value.guestId) || value.guestId < 1 ||
-        ids.has(value.guestId) || typeof value.attending !== "boolean" ||
-        !(value.teaCeremonyRsvp === null || typeof value.teaCeremonyRsvp === "boolean") ||
-        !(value.rehearsalDinnerRsvp === null || typeof value.rehearsalDinnerRsvp === "boolean") ||
-        typeof value.songRequests !== "string" || value.songRequests.length > MAX_SONG_REQUEST_LENGTH ||
-        typeof value.dietaryNotes !== "string" || value.dietaryNotes.length > MAX_DIETARY_NOTES_LENGTH) {
+        ids.has(value.guestId)) {
       throw new RsvpError(400, "Please check the attendance answers and notes for each guest.");
     }
     ids.add(value.guestId);
-    return {
-      guestId: value.guestId,
-      attending: value.attending,
-      teaCeremonyRsvp: value.teaCeremonyRsvp,
-      rehearsalDinnerRsvp: value.rehearsalDinnerRsvp,
-      songRequests: value.songRequests.trim(),
-      dietaryNotes: value.dietaryNotes.trim(),
-    };
+    return { guestId: value.guestId, ...parseAnswers(value) };
   });
-  return { guests };
+  if (body.additionalGuests !== undefined && !Array.isArray(body.additionalGuests)) {
+    throw new RsvpError(400, "Please check the additional guests.");
+  }
+  const additionIds = new Set<string>();
+  const additionalGuests = (body.additionalGuests ?? []).map((value: unknown): RsvpAdditionalGuest => {
+    if (!isRecord(value) || Object.keys(value).some((key) =>
+      !["additionId", "name", "email", "attending", "teaCeremonyRsvp", "rehearsalDinnerRsvp", "songRequests", "dietaryNotes"].includes(key)) ||
+      typeof value.additionId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value.additionId) ||
+      additionIds.has(value.additionId.toLowerCase()) ||
+      typeof value.name !== "string" || !value.name.trim() || value.name.length > MAX_GUEST_NAME_LENGTH ||
+      typeof value.email !== "string" || value.email.length > MAX_GUEST_EMAIL_LENGTH ||
+      (value.email.trim() !== "" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.email.trim()))) {
+      throw new RsvpError(400, "Please provide a name and a valid optional email for each additional guest.");
+    }
+    const response = parseAnswers(value);
+    const additionId = value.additionId.toLowerCase();
+    additionIds.add(additionId);
+    return { ...response, additionId, name: value.name.trim(), email: value.email.trim().toLowerCase() };
+  });
+  return { guests, additionalGuests };
 }
 
 // Normal requests use the verified SSO email. Only admin routes may supply an ID.
@@ -124,7 +152,7 @@ export function createRsvpService(store: RsvpStore): RsvpService {
     });
   async function submit(identity: string | number, body: unknown) {
     const submission = parseRsvpSubmission(body);
-    await store.transaction(async (writer) => {
+    return store.transaction(async (writer) => {
       const { guest, family, members } = await loadRsvpFamily(writer, identity);
       const memberIds = new Set(members.map((member) => member.id));
       if (!submission.guests.some((response) => response.guestId === guest.id)) {
@@ -135,6 +163,8 @@ export function createRsvpService(store: RsvpStore): RsvpService {
         if (!memberIds.has(response.guestId)) {
           throw new RsvpError(403, "You can only RSVP for members of your family.");
         }
+      }
+      for (const response of [...submission.guests, ...(submission.additionalGuests ?? [])]) {
         for (const [invited, answer] of [
           [family.teaCeremonyInvited, response.teaCeremonyRsvp],
           [family.rehearsalDinnerInvited, response.rehearsalDinnerRsvp],
@@ -144,10 +174,27 @@ export function createRsvpService(store: RsvpStore): RsvpService {
           }
         }
       }
+      const addedGuests: RsvpSaveResult["addedGuests"] = [];
+      const additionalResponses: RsvpGuestResponse[] = [];
+      for (const addition of submission.additionalGuests ?? []) {
+        const existing = await writer.findGuestByAdditionId(addition.additionId);
+        if (existing && (!memberIds.has(existing.id) || existing.family !== family.familyId)) {
+          throw new RsvpError(403, "This guest addition does not belong to your family.");
+        }
+        // Reusing a saved addition is safe after a lost response or repeated submission.
+        // Do not assign a shared email that would make sign-in lookup ambiguous.
+        if (addition.email && (await writer.findGuestsByEmail(addition.email)).some((match) => match.id !== existing?.id)) {
+          throw new RsvpError(409, "An additional guest's email is already on the guest list. Select them from your family list, use a different email, or leave their email blank.");
+        }
+        const guestId = await writer.saveAddedGuest(family.familyId, addition, existing?.id);
+        addedGuests.push({ additionId: addition.additionId, guestId });
+        additionalResponses.push({ ...addition, guestId });
+      }
       const respondedAt = new Date();
-      for (const response of submission.guests) {
+      for (const response of [...submission.guests, ...additionalResponses]) {
         await writer.saveResponse(family.familyId, response, respondedAt);
       }
+      return { addedGuests };
     });
   }
   return {

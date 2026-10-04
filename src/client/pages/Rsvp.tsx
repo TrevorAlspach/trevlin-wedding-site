@@ -21,6 +21,10 @@ import {
 } from "@mui/material";
 import {
   MAX_DIETARY_NOTES_LENGTH,
+  MAX_GUEST_NAME_LENGTH,
+  MAX_GUEST_EMAIL_LENGTH,
+  type RsvpAdditionalGuest,
+  type RsvpSaveResult,
   MAX_SONG_REQUEST_LENGTH,
   type RsvpDetails,
   type RsvpAdminGuest,
@@ -29,6 +33,8 @@ import {
   type RsvpSubmission,
 } from "../../shared/rsvp";
 import type { CurrentUser } from "../../shared/auth";
+
+type AdditionalGuestDraft = RsvpGuest & { additionId: string; email: string };
 
 const IVORY = "#f5efe0";
 const CORAL = "#ff9d6c";
@@ -177,6 +183,8 @@ function RsvpForm({ target, onSubmittingChange }: {
   const endpoint = target ? `/api/admin/rsvp/${target.id}` : "/api/rsvp";
   const [details, setDetails] = useState<RsvpDetails | null>(null);
   const [drafts, setDrafts] = useState<Record<number, RsvpGuest>>({});
+  const [additionalGuests, setAdditionalGuests] = useState<AdditionalGuestDraft[]>([]);
+  const [nextDraftId, setNextDraftId] = useState(-1);
   const [otherGuestIds, setOtherGuestIds] = useState<number[]>([]);
   const [loadError, setLoadError] = useState("");
   const [submitError, setSubmitError] = useState("");
@@ -208,7 +216,11 @@ function RsvpForm({ target, onSubmittingChange }: {
   }, [loadVersion, endpoint]);
 
   function updateGuest(id: number, changes: Partial<RsvpGuest>) {
-    setDrafts((previous) => ({ ...previous, [id]: { ...previous[id], ...changes } }));
+    if (id < 0) {
+      setAdditionalGuests((previous) => previous.map((guest) => guest.id === id ? { ...guest, ...changes } : guest));
+    } else {
+      setDrafts((previous) => ({ ...previous, [id]: { ...previous[id], ...changes } }));
+    }
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -216,27 +228,41 @@ function RsvpForm({ target, onSubmittingChange }: {
     if (!details || submitting) return;
     setSubmitError("");
     const guests: RsvpGuestResponse[] = [];
-    for (const id of [details.guestId, ...otherGuestIds]) {
-      const guest = drafts[id];
+    const additions: RsvpAdditionalGuest[] = [];
+    for (const guest of selectedGuests) {
+      if (!guest.name.trim()) {
+        setSubmitError("Please enter a name for each additional guest.");
+        return;
+      }
       if (guest.attending === null ||
           (details.invitations.teaCeremony && guest.teaCeremonyRsvp === null) ||
           (details.invitations.rehearsalDinner && guest.rehearsalDinnerRsvp === null)) {
         setSubmitError(`Please answer each attendance question for ${guest.name}.`);
         return;
       }
-      guests.push({
-        guestId: id,
+      const response: RsvpGuestResponse = {
+        guestId: guest.id,
         attending: guest.attending,
         teaCeremonyRsvp: details.invitations.teaCeremony ? guest.teaCeremonyRsvp : null,
         rehearsalDinnerRsvp: details.invitations.rehearsalDinner ? guest.rehearsalDinnerRsvp : null,
         songRequests: guest.songRequests,
         dietaryNotes: guest.dietaryNotes,
-      });
+      };
+      if ("additionId" in guest) {
+        additions.push({
+          additionId: guest.additionId, name: guest.name, email: guest.email,
+          attending: response.attending, teaCeremonyRsvp: response.teaCeremonyRsvp,
+          rehearsalDinnerRsvp: response.rehearsalDinnerRsvp,
+          songRequests: response.songRequests, dietaryNotes: response.dietaryNotes,
+        });
+      } else {
+        guests.push(response);
+      }
     }
     setSubmitting(true);
     onSubmittingChange(true);
     try {
-      const submission: RsvpSubmission = { guests };
+      const submission: RsvpSubmission = { guests, additionalGuests: additions };
       const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -245,6 +271,20 @@ function RsvpForm({ target, onSubmittingChange }: {
       if (!response.ok) {
         throw new Error(await responseError(response, "We couldn't save your RSVP. Please try again."));
       }
+      const result: RsvpSaveResult = await response.json();
+      const savedAdditions: RsvpGuest[] = additionalGuests.map((guest) => {
+        const match = result.addedGuests.find((addition) => addition.additionId === guest.additionId);
+        if (!match) throw new Error("We couldn't confirm the added guests. Please try saving again.");
+        return {
+          id: match.guestId, name: guest.name.trim(), attending: guest.attending,
+          teaCeremonyRsvp: guest.teaCeremonyRsvp, rehearsalDinnerRsvp: guest.rehearsalDinnerRsvp,
+          songRequests: guest.songRequests, dietaryNotes: guest.dietaryNotes,
+        };
+      });
+      setDetails({ ...details, guests: [...details.guests, ...savedAdditions] });
+      setDrafts((previous) => ({ ...previous, ...Object.fromEntries(savedAdditions.map((guest) => [guest.id, guest])) }));
+      setOtherGuestIds((previous) => [...previous, ...savedAdditions.map((guest) => guest.id)]);
+      setAdditionalGuests([]);
       setSaved(true);
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : "We couldn't save your RSVP. Please try again.");
@@ -255,7 +295,8 @@ function RsvpForm({ target, onSubmittingChange }: {
   }
 
   const otherGuests = details?.guests.filter((guest) => guest.id !== details.guestId) ?? [];
-  const selectedGuests = details ? [details.guestId, ...otherGuestIds].map((id) => drafts[id]) : [];
+  const selectedGuests: (RsvpGuest | AdditionalGuestDraft)[] = details
+    ? [...[details.guestId, ...otherGuestIds].map((id) => drafts[id]), ...additionalGuests] : [];
 
   return (
     <Box>
@@ -333,8 +374,36 @@ function RsvpForm({ target, onSubmittingChange }: {
           {selectedGuests.map((guest) => (
             <Box key={guest.id} component="fieldset" sx={{ m: 0, p: { xs: 2, sm: 3 }, minWidth: 0, display: "flex", flexDirection: "column", gap: 2.5, backgroundColor: IVORY, border: "1px solid rgba(38, 49, 28, 0.16)" }}>
               <Typography component="legend" sx={{ px: 1, fontFamily: SERIF, fontSize: "1.8rem" }}>
-                {guest.name}{guest.id === details.guestId ? target ? " (impersonating)" : " (you)" : ""}
+                {"additionId" in guest ? `Additional guest ${additionalGuests.findIndex((addition) => addition.id === guest.id) + 1}` : guest.name}{guest.id === details.guestId ? target ? " (impersonating)" : " (you)" : ""}
               </Typography>
+              {"additionId" in guest && <>
+                <TextField
+                  label="Guest’s full name"
+                  value={guest.name}
+                  onChange={(event) => updateGuest(guest.id, { name: event.target.value })}
+                  required
+                  autoFocus
+                  disabled={submitting}
+                  slotProps={{ htmlInput: { maxLength: MAX_GUEST_NAME_LENGTH } }}
+                  fullWidth
+                  sx={fieldSx}
+                />
+                <TextField
+                  label="Guest’s email (optional)"
+                  type="email"
+                  value={guest.email}
+                  onChange={(event) => setAdditionalGuests((previous) => previous.map((addition) =>
+                    addition.id === guest.id ? { ...addition, email: event.target.value } : addition))}
+                  disabled={submitting}
+                  slotProps={{ htmlInput: { maxLength: MAX_GUEST_EMAIL_LENGTH } }}
+                  fullWidth
+                  sx={fieldSx}
+                />
+                <Button type="button" disabled={submitting} onClick={() => setAdditionalGuests((previous) => previous.filter((addition) => addition.id !== guest.id))}
+                  aria-label={`Remove ${guest.name || "additional guest"}`} sx={{ color: INK, alignSelf: "flex-start", fontFamily: SANS, textTransform: "none" }}>
+                  Remove guest
+                </Button>
+              </>}
               <AttendanceQuestion id={`wedding-${guest.id}`} label="Will you attend the wedding?" value={guest.attending} onChange={(attending) => updateGuest(guest.id, { attending })} disabled={submitting} />
               {details.invitations.teaCeremony && (
                 <AttendanceQuestion id={`tea-${guest.id}`} label="Will you attend the tea ceremony?" value={guest.teaCeremonyRsvp} onChange={(teaCeremonyRsvp) => updateGuest(guest.id, { teaCeremonyRsvp })} disabled={submitting} />
@@ -366,6 +435,19 @@ function RsvpForm({ target, onSubmittingChange }: {
               />
             </Box>
           ))}
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+            <Typography sx={{ fontFamily: SANS, lineHeight: 1.7 }}>
+              Bringing someone who isn’t listed above? Add as many guests as you need. They’ll be added to your family when you send your RSVP.
+            </Typography>
+            <Button type="button" disabled={submitting} sx={buttonSx} onClick={() => {
+              setAdditionalGuests((previous) => [...previous, {
+                id: nextDraftId, additionId: crypto.randomUUID(), name: "", email: "",
+                attending: null, teaCeremonyRsvp: null, rehearsalDinnerRsvp: null,
+                songRequests: "", dietaryNotes: "",
+              }]);
+              setNextDraftId((previous) => previous - 1);
+            }}>Add another guest</Button>
+          </Box>
           {submitError && <Alert severity="error">{submitError}</Alert>}
           <Button type="submit" variant="contained" disabled={submitting} sx={buttonSx}>
             {submitting ? <><CircularProgress size={20} sx={{ color: "inherit", mr: 1 }} />Saving RSVP…</> : "Send RSVP"}
