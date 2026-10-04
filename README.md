@@ -97,15 +97,21 @@ Schema synchronization and automatic migrations are disabled.
 | `address` | `address` | `nvarchar(1000)` | Nullable |
 | `rsvp` | `rsvp` | `bit` | `false` |
 | `family` | `family` | `varchar(1000)` | Nullable foreign key to `families.family_id` |
+| `teaCeremonyRsvp` | `tea_ceremony_rsvp` | `bit` | Nullable; guest's event response |
+| `rehearsalDinnerRsvp` | `rehearsal_dinner_rsvp` | `bit` | Nullable; guest's event response |
+| `rsvpRespondedAt` | `rsvp_responded_at` | `datetime2` | Nullable; UTC time of the latest submission |
+| `songRequests` | `song_requests` | `nvarchar(1000)` | Nullable |
+| `dietaryNotes` | `dietary_notes` | `nvarchar(2000)` | Nullable |
 
-The boolean RSVP does not distinguish an unanswered invitation from a decline.
-This is database boilerplate: existing RSVP screens and `ALLOWED_EMAILS`
-authorization are not yet connected to the guests table.
+The RSVP page uses `rsvpRespondedAt` to distinguish unanswered invitations from
+explicit wedding declines. Legacy `rsvp = true` values remain accepted; legacy
+`false` values without a response timestamp appear unanswered. Site access is
+still controlled by `ALLOWED_EMAILS`.
 
 `GET /api/guests` returns all guests as a JSON array ordered by `id`, or `[]` when
 the table is empty. Each object includes `id`, `name`, `email`, `address`, `rsvp`,
-and `family`. Family invitation flags are stored separately and are not included
-in this endpoint. All authenticated users in `ALLOWED_EMAILS` can access this
+and `family`. Family invitation flags, event responses, song requests, and dietary
+notes are not included in this endpoint. All authenticated users in `ALLOWED_EMAILS` can access this
 endpoint, including the address field. Anonymous requests receive `401`; accounts outside the allowlist receive
 `403`. Responses are not cached, and database failures return a generic `500`
 JSON error.
@@ -173,7 +179,7 @@ Use short, stable identifiers for families.
 (`varchar(1000)`, foreign key to `families.family_id`) and `guest_id` (`int`,
 primary key and foreign key to `guests.id`). Each guest can have one membership;
 multiple guests can belong to the same family. An index on `family_id` supports
-looking up all members for a future RSVP form. Deleting a guest deletes its
+looking up all members for the RSVP form. Deleting a guest deletes its
 membership; deleting a referenced family is blocked.
 
 When assigning or moving a guest, update `guests.family` and the corresponding
@@ -182,7 +188,7 @@ families exist; they do not synchronize these two representations of membership.
 A guest may have `family = NULL` while awaiting assignment and should then have
 no membership row. Use `manager.getRepository(FamilySchema)` and
 `manager.getRepository(FamilyGuestSchema)` inside a transaction to manage these
-entities. The RSVP UI is not yet connected to them.
+entities. The RSVP API rejects inconsistent membership records.
 
 The `CreateFamilies` migration preserves existing invitations by creating one
 family named `guest-<id>` per existing guest and inserting its membership row
@@ -190,6 +196,56 @@ before removing the two invitation columns from `guests`. These placeholder
 families can later be consolidated into actual households. Reverting copies the
 current family invitation flags back to each guest, then removes family and
 membership data. Unassigned guests receive `false` for both flags on revert.
+
+### RSVP form and API
+
+The RSVP form submits directly to the server and Azure SQL. It no longer uses
+Formspree; the separate sign-in access-request feature still uses its configured
+Formspree form.
+
+`GET /api/rsvp` resolves the guest using the verified SSO email, ignoring email
+case and surrounding whitespace. That email must match exactly one guest row.
+Missing guests return `404`; duplicate matches, unassigned families, or
+inconsistent membership records return `409` with a message to contact the hosts.
+The guest's `family` identifies the family invitation, and `family_guests` supplies
+the dropdown members. The response includes SSO name/email, the signed-in guest's
+ID, family invitation flags, and member names and saved responses. Other members'
+emails and addresses are not returned.
+
+The signed-in guest always has a response section. The dropdown adds optional
+sections for other family members. Each person answers yes/no for the wedding
+and for each invited event. Hidden, uninvited events carry `null` responses;
+answers for different events are independent. Saved responses load on returning
+to the page, and unselected members are not changed by a submission.
+
+`POST /api/rsvp` accepts JSON with this shape:
+
+```json
+{
+  "guests": [{
+    "guestId": 1,
+    "attending": true,
+    "teaCeremonyRsvp": false,
+    "rehearsalDinnerRsvp": null,
+    "songRequests": "",
+    "dietaryNotes": "No peanuts"
+  }]
+}
+```
+
+The example assumes a tea ceremony invitation but no rehearsal dinner invitation.
+Submissions must include the signed-in guest, contain no duplicate IDs, and only
+include members of that family. The server rechecks current invitation flags and
+membership, requires answers for invited events, and rejects responses for
+uninvited events. It updates all selected guests in one serializable transaction;
+failures roll back the entire submission. Notes are limited to 1,000 characters
+for songs and 2,000 for dietary restrictions. Both endpoints require an allowed
+authenticated account and return responses with `Cache-Control: private, no-store`.
+
+Apply `AddGuestRsvpResponses` before deploying this version of the application.
+It adds nullable response fields without changing existing family invitation
+flags or guessing historical responses. Reverting it deletes the added event
+responses, notes, and submission timestamps; the existing wedding `rsvp` remains.
 
 ### Local setup and migrations
 

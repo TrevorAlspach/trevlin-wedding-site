@@ -5,6 +5,8 @@ import { createApp } from "./app.js";
 import { parseAllowedEmails, parseProviders } from "./auth.js";
 import database from "./db/data-source.js";
 import { guestRepository } from "./db/guest-repository.js";
+import { createRsvpStore } from "./db/rsvp-repository.js";
+import { createRsvpService } from "./rsvp.js";
 
 export async function startServer() {
   const allowedEmails = parseAllowedEmails(process.env.ALLOWED_EMAILS);
@@ -22,7 +24,8 @@ export async function startServer() {
   await database.initialize();
   console.log("Azure SQL connection established");
 
-  const server = createApp({ allowedEmails, providers, guestRepository }).listen(port, "0.0.0.0");
+  const rsvpService = createRsvpService(createRsvpStore(database));
+  const server = createApp({ allowedEmails, providers, guestRepository, rsvpService }).listen(port, "0.0.0.0");
   try {
     await once(server, "listening");
   } catch (error) {

@@ -29,6 +29,7 @@ import type { ProviderName, SessionResponse } from "../shared/auth.js";
 import type { AccessRequestResponse } from "../shared/access-request.js";
 import type { Repository } from "typeorm";
 import type { Guest } from "./db/guest.js";
+import { RsvpError, type RsvpService } from "./rsvp.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_DIST_DIR = path.resolve(__dirname, "../../dist");
@@ -84,6 +85,7 @@ export type CreateAppOptions = {
   providers?: ProviderName[];
   distDir?: string;
   guestRepository?: Pick<Repository<Guest>, "find">;
+  rsvpService?: RsvpService;
   chatModel?: StreamingChatModel;
   chatRateLimit?: {
     maxRequests?: number;
@@ -102,6 +104,7 @@ export function createApp({
   providers = parseProviders(process.env.AUTH_PROVIDERS),
   distDir = DEFAULT_DIST_DIR,
   guestRepository,
+  rsvpService,
   chatModel,
   chatRateLimit,
   accessRequestSender,
@@ -294,8 +297,46 @@ export function createApp({
       return;
     }
 
-    const guests = await guestRepository.find({ order: { id: "ASC" } });
+    const guests = await guestRepository.find({
+      // RSVP notes and individual event responses are only exposed to the family.
+      select: { id: true, name: true, email: true, address: true, rsvp: true, family: true },
+      order: { id: "ASC" },
+    });
     response.json(guests);
+  });
+
+  app.get("/api/rsvp", async (_request, response) => {
+    if (!rsvpService) {
+      response.status(503).json({ error: "RSVP is currently unavailable. Please try again later." });
+      return;
+    }
+    try {
+      response.json(await rsvpService.load(
+        response.locals.authenticatedEmail as string,
+        response.locals.authenticatedName as string | null,
+      ));
+    } catch (error) {
+      if (!(error instanceof RsvpError)) throw error;
+      response.status(error.status).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/rsvp", express.json({ limit: "256kb", strict: true }), async (request, response) => {
+    if (!rsvpService) {
+      response.status(503).json({ error: "RSVP is currently unavailable. Please try again later." });
+      return;
+    }
+    if (!request.is("application/json")) {
+      response.status(415).json({ error: "Please submit your RSVP as JSON." });
+      return;
+    }
+    try {
+      await rsvpService.submit(response.locals.authenticatedEmail as string, request.body);
+      response.json({ status: "saved" });
+    } catch (error) {
+      if (!(error instanceof RsvpError)) throw error;
+      response.status(error.status).json({ error: error.message });
+    }
   });
 
   app.post(
