@@ -1,3 +1,4 @@
+import type { ChatStreamEvent } from "../../../shared/chat";
 import { useCallback, useRef, useState } from "react";
 import type { ChatMessage, ChatStatus } from "@/chat/lib/types";
 import {
@@ -6,20 +7,14 @@ import {
   isTaroBotHelmet,
   stripTaroBotControlText,
   type TaroBotAppearance,
-} from "@/chat/lib/tarobot";
+} from "../../../shared/tarobot";
 import { generateUUID } from "@/chat/lib/utils";
 
 type UseStreamingChatOptions = {
   apiUrl: string;
 };
 
-type StreamEvent =
-  | { type: "text"; content: string }
-  | { type: "appearance"; helmet: TaroBotAppearance["helmet"]; face: TaroBotAppearance["face"] }
-  | { type: "done" }
-  | { type: "error"; content?: string };
-
-function isStreamEvent(value: unknown): value is StreamEvent {
+function isStreamEvent(value: unknown): value is ChatStreamEvent {
   if (!value || typeof value !== "object" || !("type" in value)) return false;
 
   if (value.type === "done") return true;
@@ -42,10 +37,10 @@ function isStreamEvent(value: unknown): value is StreamEvent {
 }
 
 function takeCompletedSseEvents(buffer: string): {
-  events: StreamEvent[];
+  events: ChatStreamEvent[];
   remainder: string;
 } {
-  const events: StreamEvent[] = [];
+  const events: ChatStreamEvent[] = [];
   let remainder = buffer;
 
   while (true) {
@@ -159,7 +154,7 @@ export function useStreamingChat({ apiUrl }: UseStreamingChatOptions) {
         let buffer = "";
         let completed = false;
 
-        const applyEvents = (events: StreamEvent[]) => {
+        const applyEvents = (events: ChatStreamEvent[]) => {
           for (const event of events) {
             if (event.type === "text") {
               accumulatedContent += event.content ?? "";

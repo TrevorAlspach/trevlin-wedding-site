@@ -12,6 +12,12 @@ import {
   atlantaRestaurantGroups,
 } from "../shared/things-to-do.js";
 
+import {
+  DEFAULT_TAROBOT_APPEARANCE,
+  type TaroBotAppearance,
+} from "../shared/tarobot.js";
+import type { ChatRole, ChatRequestMessage, ChatStreamEvent } from "../shared/chat.js";
+
 export const MAX_CHAT_HISTORY = 50;
 export const MAX_CHAT_MESSAGE_LENGTH = 5_000;
 export const DEFAULT_CHAT_RATE_LIMIT = 10;
@@ -19,36 +25,9 @@ export const DEFAULT_CHAT_RATE_WINDOW_MS = 60_000;
 export const DEFAULT_OPENAI_MODEL = "gpt-5.6-luna";
 export const RARE_CHAD_GON_CHANCE = 0.15;
 
-export const TAROBOT_HELMETS = ["GREEN", "YELLOW", "RED"] as const;
-export const TAROBOT_FACES = [
-  "NORMAL_GON",
-  "HAPPY_GON",
-  "CHAD_GON",
-  "WTF_GON",
-  "SIDEEYE_GON",
-  "IMDEAD_GON",
-] as const;
-
-export type TaroBotAppearance = {
-  helmet: (typeof TAROBOT_HELMETS)[number];
-  face: (typeof TAROBOT_FACES)[number];
-};
-
-export const DEFAULT_TAROBOT_APPEARANCE: TaroBotAppearance = {
-  helmet: "GREEN",
-  face: "NORMAL_GON",
-};
-
 const TAROBOT_APPEARANCE_PATTERN =
   /\[\[TAROBOT:HELMET=(GREEN|YELLOW|RED);FACE=(NORMAL_GON|HAPPY_GON|CHAD_GON|WTF_GON|SIDEEYE_GON|IMDEAD_GON)\]\]/i;
 const TAROBOT_CONTROL_TAG_PATTERN = /\[\[TAROBOT:[\s\S]*?(?:\]\]|$)/gi;
-
-export type ChatRole = "user" | "assistant";
-
-export type ChatRequestMessage = {
-  role: ChatRole;
-  content: string;
-};
 
 export type ChatStreamChunk = {
   text: string;
@@ -393,7 +372,7 @@ export function createModelMessages(
   ];
 }
 
-export function encodeSseData(event: Record<string, unknown>): string {
+export function encodeSseData(event: ChatStreamEvent): string {
   return `data: ${JSON.stringify(event)}\n\n`;
 }
 

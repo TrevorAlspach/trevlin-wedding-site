@@ -1,7 +1,7 @@
 @import "tailwindcss" layer(tailwind);
 
 /* Include utility classes in streamdown */
-@source "../../node_modules/streamdown/dist/index.js";
+@source "../../../node_modules/streamdown/dist/index.js";
 
 /* Disable Tailwind's preflight to avoid conflicting with MUI base styles */
 @layer tailwind.base {

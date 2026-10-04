@@ -36,6 +36,15 @@ For a non-container local build, copy `.env.example` to `.env`, add your local
 The browser always calls the same-origin `/api/chat` endpoint; no API key or
 `VITE_`-prefixed chat configuration is exposed to the frontend.
 
+## Source layout
+
+- `src/client`: React application, browser utilities, styles, and assets.
+- `src/server`: Express server and server tests.
+- `src/shared`: Data, types, and utilities used by both client and server.
+
+The client `@/` alias resolves to `src/client`. Production builds emit the client
+to `dist` and the server and its shared modules to `server-dist`.
+
 ## Commands
 
 ```powershell

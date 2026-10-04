@@ -14,7 +14,7 @@ import sideEyeGon from "@/assets/tarobot/SIDEEYE_GON.png";
 import staticGon from "@/assets/tarobot/STATIC_GON.png";
 import wtfGon from "@/assets/tarobot/WTF_GON.png";
 import type { ChatStatus } from "@/chat/lib/types";
-import type { TaroBotAppearance, TaroBotFace } from "@/chat/lib/tarobot";
+import type { TaroBotAppearance, TaroBotFace } from "../../../shared/tarobot";
 import { cn } from "@/chat/lib/utils";
 
 type LoadingFace =

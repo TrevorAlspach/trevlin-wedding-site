@@ -23,8 +23,8 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/client/*"]
     }
   },
-  "include": ["src", "shared"]
+  "include": ["src/client", "src/shared"]
 }
